@@ -1,0 +1,92 @@
+CREATE TABLE allergies (
+  allergy_id INT(10) NOT NULL PRIMARY KEY,
+  patient_id INT(10) NOT NULL,
+  allergen_type ENUM(11) NULL DEFAULT NULL,
+  allergen_name VARCHAR(100) NOT NULL,
+  reaction TEXT(65535) NULL DEFAULT NULL,
+  severity ENUM(16) NULL DEFAULT NULL,
+  diagnosed_date DATE(10) NULL DEFAULT NULL,
+  notes TEXT(65535) NULL DEFAULT NULL,
+  FOREIGN KEY (patient_id) REFERENCES patients(patient_id));
+
+CREATE TABLE medications (
+  medication_id INT(10) NOT NULL PRIMARY KEY,
+  brand_name VARCHAR(100) NOT NULL,
+  generic_name VARCHAR(100) NOT NULL,
+  drug_class VARCHAR(100) NULL DEFAULT NULL,
+  description TEXT(65535) NULL DEFAULT NULL,
+  standard_dosage VARCHAR(50) NULL DEFAULT NULL,
+  unit_form ENUM(9) NULL DEFAULT NULL,
+  strength VARCHAR(50) NULL DEFAULT NULL,
+  manufacturer VARCHAR(100) NULL DEFAULT NULL,
+  controlled_substance BOOLEAN(3) NULL DEFAULT 0);
+
+CREATE TABLE medication_administration (
+  admin_id INT(10) NOT NULL PRIMARY KEY,
+  prescription_id INT(10) NOT NULL,
+  patient_id INT(10) NOT NULL,
+  administered_by INT(10) NOT NULL,
+  administered_datetime DATETIME(19) NOT NULL,
+  dosage_given VARCHAR(50) NOT NULL,
+  notes TEXT(65535) NULL DEFAULT NULL,
+  FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+  FOREIGN KEY (prescription_id) REFERENCES prescriptions(prescription_id),
+  FOREIGN KEY (administered_by) REFERENCES providers(provider_id));
+
+CREATE TABLE patients (
+  patient_id INT(10) NOT NULL PRIMARY KEY,
+  first_name VARCHAR(50) NOT NULL,
+  last_name VARCHAR(50) NOT NULL,
+  date_of_birth DATE(10) NOT NULL,
+  gender ENUM(6) NOT NULL,
+  contact_number VARCHAR(20) NULL DEFAULT NULL,
+  email VARCHAR(100) NULL DEFAULT NULL,
+  address TEXT(65535) NULL DEFAULT NULL,
+  insurance_number VARCHAR(50) NULL DEFAULT NULL,
+  registration_date DATETIME(19) NULL DEFAULT current_timestamp(),
+  active_status BOOLEAN(3) NULL DEFAULT 1);
+
+CREATE TABLE prescriptions (
+  prescription_id INT(10) NOT NULL PRIMARY KEY,
+  patient_id INT(10) NOT NULL,
+  medication_id INT(10) NOT NULL,
+  visit_id INT(10) NOT NULL,
+  provider_id INT(10) NOT NULL,
+  dosage VARCHAR(50) NOT NULL,
+  frequency VARCHAR(50) NOT NULL,
+  start_date DATE(10) NOT NULL,
+  end_date DATE(10) NULL DEFAULT NULL,
+  refills INT(10) NULL DEFAULT 0,
+  instructions TEXT(65535) NULL DEFAULT NULL,
+  active_status BOOLEAN(3) NULL DEFAULT 1,
+  created_at DATETIME(19) NULL DEFAULT current_timestamp(),
+  FOREIGN KEY (medication_id) REFERENCES medications(medication_id),
+  FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+  FOREIGN KEY (provider_id) REFERENCES providers(provider_id),
+  FOREIGN KEY (visit_id) REFERENCES visits(visit_id));
+
+CREATE TABLE providers (
+  provider_id INT(10) NOT NULL PRIMARY KEY,
+  first_name VARCHAR(50) NOT NULL,
+  last_name VARCHAR(50) NOT NULL,
+  specialty VARCHAR(100) NULL DEFAULT NULL,
+  license_number VARCHAR(50) NOT NULL,
+  contact_number VARCHAR(20) NULL DEFAULT NULL,
+  email VARCHAR(100) NULL DEFAULT NULL,
+  active_status BOOLEAN(3) NULL DEFAULT 1);
+
+CREATE TABLE visits (
+  visit_id INT(10) NOT NULL PRIMARY KEY,
+  patient_id INT(10) NOT NULL,
+  provider_id INT(10) NOT NULL,
+  visit_date DATETIME(19) NOT NULL,
+  visit_type ENUM(10) NULL DEFAULT NULL,
+  chief_complaint TEXT(65535) NULL DEFAULT NULL,
+  diagnosis TEXT(65535) NULL DEFAULT NULL,
+  notes TEXT(65535) NULL DEFAULT NULL,
+  follow_up_needed BOOLEAN(3) NULL DEFAULT 0,
+  follow_up_date DATE(10) NULL DEFAULT NULL,
+  created_at DATETIME(19) NULL DEFAULT current_timestamp(),
+  FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+  FOREIGN KEY (provider_id) REFERENCES providers(provider_id));
+
