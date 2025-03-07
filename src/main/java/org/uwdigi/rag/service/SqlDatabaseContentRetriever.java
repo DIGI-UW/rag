@@ -99,8 +99,8 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     private final int maxRetries;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final EmbeddingModel embeddingModel;
-    static String MODEL_NAME = "llama3.2";
-    static String BASE_URL = "http://localhost:11435";
+    static String MODEL_NAME = "llama3";
+    static String BASE_URL = "http://localhost:11434";
 
     /**
      * Creates an instance of a {@code SqlDatabaseContentRetriever}.

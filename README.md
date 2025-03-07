@@ -25,6 +25,15 @@ git clone https://github.com/DIGI-UW/rag.git
 cd rag
 ```
 
+### Quick start with docker
+
+```bash
+docker compose up
+
+```
+
+The application will be available at http://localhost:8080
+
 ### Configuration
 
 Set up the following environment variables or modify `application.properties`:
@@ -39,8 +48,8 @@ DB_PASSWORD=your_password
 GEMINI_API_KEY=your_gemini_api_key
 
 # Ollama configuration (if using)
-OLLAMA_BASE_URL=http://localhost:11435
-OLLAMA_MODEL_NAME=llama3.2
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL_NAME=llama3
 
 # LocalAI configuration (if using)
 LOCAL_AI_BASE_URL=http://localhost:8080/v1
