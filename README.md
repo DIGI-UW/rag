@@ -25,6 +25,15 @@ git clone https://github.com/DIGI-UW/rag.git
 cd rag
 ```
 
+### Quick start with docker
+
+```bash
+docker compose up
+
+```
+
+The application will be available at http://localhost:8080
+
 ### Configuration
 
 Set up the following environment variables or modify `application.properties`:
