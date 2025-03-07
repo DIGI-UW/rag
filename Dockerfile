@@ -37,7 +37,7 @@ COPY --from=build ${DEPENDENCY}/BOOT-INF/classes /app
 COPY --from=build /workspace/app/target/*.jar /app.jar
 
 # Expose the port that your app runs on
-EXPOSE 8181
+EXPOSE 8080
 
 
 # Add wait-for-it script
