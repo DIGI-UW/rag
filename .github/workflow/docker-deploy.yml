@@ -1,4 +1,4 @@
-name: Build and Deploy Rag and customOllama Docker Images
+name: Build and Deploy Rag and custom Ollama Docker Images
 
 on:
   push:
