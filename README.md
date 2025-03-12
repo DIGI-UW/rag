@@ -25,8 +25,18 @@ git clone https://github.com/DIGI-UW/rag.git
 cd rag
 ```
 
+Sign in  to [Google Studio](https://aistudio.google.com) and get an API key for Gemini abd add it to the [env](.env) file
+
 ### Quick start with docker
 
+#### Run App with Built docker images
+
+```bash
+docker compose up --build
+
+```
+
+#### Run App with published docker images
 ```bash
 docker compose up
 

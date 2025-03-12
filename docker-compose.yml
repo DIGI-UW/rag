@@ -3,7 +3,8 @@ version: '3.8'
 services:
   # Spring Boot application
   app:
-    build: .
+    image : itechuw/rag-app:latest
+    container_name : rag_app
     ports:
       - "8080:8080"
     environment:
@@ -17,7 +18,7 @@ services:
       - LOCAL_AI_MODEL_NAME=gpt-4
     depends_on:
       - mariadb
-      - ollama
+      # - ollama
 
   # MariaDB database
   mariadb:
@@ -33,16 +34,15 @@ services:
       - "3307:3306"
 
   # Ollama service
-  ollama:
-    build:
-      context: ./ollama
-      dockerfile: Dockerfile
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
+  # ollama:
+  #   image : itechuw/ollama:latest
+  #   container_name : ollama_app
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
 
 
 volumes:
   mariadb_data:
-  ollama_data:
+  # ollama_data:

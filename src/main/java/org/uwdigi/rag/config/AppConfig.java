@@ -8,9 +8,10 @@ import org.mariadb.jdbc.MariaDbDataSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.uwdigi.rag.service.SqlDatabaseContentRetriever;
+// import org.uwdigi.rag.service.SqlDatabaseContentRetriever;
 import org.uwdigi.rag.shared.Assistant;
 
+import dev.langchain4j.experimental.rag.content.retriever.sql.SqlDatabaseContentRetriever;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
@@ -92,18 +93,18 @@ public class AppConfig {
     }
 
     @Bean
-    public ContentRetriever sqlDatabaseContentRetriever(DataSource dataSource, ChatLanguageModel ollamaChatModel) {
+    public ContentRetriever sqlDatabaseContentRetriever(DataSource dataSource, ChatLanguageModel geminiChatModel) {
         return SqlDatabaseContentRetriever.builder()
                 .dataSource(dataSource)
                 .sqlDialect("MySQL")
-                .chatLanguageModel(ollamaChatModel)
+                .chatLanguageModel(geminiChatModel)
                 .build();
     }
 
     @Bean
-    public Assistant assistant(ChatLanguageModel ollamaChatModel, ContentRetriever sqlDatabaseContentRetriever) {
+    public Assistant assistant(ChatLanguageModel geminiChatModel, ContentRetriever sqlDatabaseContentRetriever) {
         return AiServices.builder(Assistant.class)
-                .chatLanguageModel(ollamaChatModel)
+                .chatLanguageModel(geminiChatModel)
                 .contentRetriever(sqlDatabaseContentRetriever)
                 .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
                 .build();
