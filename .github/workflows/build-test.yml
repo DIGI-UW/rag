@@ -26,5 +26,5 @@ jobs:
           distribution: 'temurin'  # Alternative: 'zulu', 'corretto', etc.
           cache: 'maven'  # Speeds up builds by caching dependencies
 
-     - name: Build and Test
+      - name: Build and Test
         run: mvn --batch-mode --update-snapshots --activate-profiles validator clean package
