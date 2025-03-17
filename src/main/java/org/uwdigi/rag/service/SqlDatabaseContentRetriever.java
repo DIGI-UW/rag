@@ -84,11 +84,11 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
     private static final PromptTemplate DEFAULT_PROMPT_TEMPLATE = PromptTemplate.from(
             "You are an expert in writing SQL queries.\n" +
-                    "You have access to a {{sqlDialect}} database with the following portion of it's structure:\n" +
+                    "You have access to a {{sqlDialect}} database with the following structure:\n" +
                     "{{databaseStructure}}\n" +
-                    "Use the provided snippet to generate an SQL SELECT query.\n" +
-                    "Do not output anything else aside from a valid SQL statement!");
-
+                    "If a user asks a question that can be answered by querying this database, generate an SQL SELECT query.\n" +
+                    "Do not output anything else aside from a valid SQL statement!"
+    );
     private final DataSource dataSource;
     private final String sqlDialect;
     private final String databaseStructure;
@@ -381,7 +381,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
         Map<String, Object> variables = new HashMap<>();
         variables.put("sqlDialect", sqlDialect);
-        variables.put("databaseStructure", this.databaseStructure);
+        variables.put("databaseStructure", databaseStructure);
 
         return promptTemplate.apply(variables);
     }

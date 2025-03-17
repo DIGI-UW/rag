@@ -6,32 +6,29 @@ services:
     image : itechuw/rag-app:latest
     container_name : rag_app
     ports:
-      - "8080:8080"
+      - "8282:8080"
     environment:
-      - DB_URL=jdbc:mariadb://mariadb:3306/openmrs
-      - DB_USER=root
-      - DB_PASSWORD=password
+      - DB_URL=${DB_URL}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-demoKey}
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_MODEL_NAME=llama3
       - LOCAL_AI_BASE_URL=http://localai:8080/v1
       - LOCAL_AI_MODEL_NAME=gpt-4
-    depends_on:
-      - mariadb
-      # - ollama
 
   # MariaDB database
-  mariadb:
-    image: mariadb:10.11.7
-    restart: always
-    environment:
-      - MARIADB_ROOT_PASSWORD=password
-      - MARIADB_DATABASE=openmrs
-    volumes:
-      - mariadb_data:/var/lib/mysql
-      - ./init-scripts:/docker-entrypoint-initdb.d
-    ports:
-      - "3307:3306"
+#  mariadb:
+#    image: mariadb:10.11.7
+#    restart: always
+#    environment:
+#      - MARIADB_ROOT_PASSWORD=password
+#      - MARIADB_DATABASE=openmrs
+#    volumes:
+#      - mariadb_data:/var/lib/mysql
+#      - ./init-scripts:/docker-entrypoint-initdb.d
+#    ports:
+#      - "3307:3306"
 
   # Ollama service
   # ollama:
@@ -43,6 +40,6 @@ services:
   #     - ollama_data:/root/.ollama
 
 
-volumes:
-  mariadb_data:
+#volumes:
+  #mariadb_data:
   # ollama_data:
