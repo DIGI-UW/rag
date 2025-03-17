@@ -158,26 +158,26 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
         this.promptTemplate = getOrDefault(promptTemplate, DEFAULT_PROMPT_TEMPLATE);
         this.chatLanguageModel = ensureNotNull(chatLanguageModel, "chatLanguageModel");
         this.maxRetries = getOrDefault(maxRetries, 1);
-        // saveTextToFile(this.databaseStructure);
+        /* saveTextToFile(this.databaseStructure);
 
-        // DocumentParser documentParser = new TextDocumentParser();
-        // Document document = loadDocument(toPath("documents/output.txt"), documentParser);
+        DocumentParser documentParser = new TextDocumentParser();
+        Document document = loadDocument(toPath("documents/output.txt"), documentParser);
 
-        // DocumentSplitter splitter = DocumentSplitters.recursive(300, 0);
-        // List<TextSegment> segments = splitter.split(document);
+        DocumentSplitter splitter = DocumentSplitters.recursive(300, 0);
+        List<TextSegment> segments = splitter.split(document);
 
+       
+        embeddingModel = OllamaEmbeddingModel.builder()
+         .baseUrl(BASE_URL)
+         .modelName(MODEL_NAME)
+         .build(); 
         
-        //  /* embeddingModel = OllamaEmbeddingModel.builder()
-        //  .baseUrl(BASE_URL)
-        //  .modelName(MODEL_NAME)
-        //  .build(); */
-         
 
-        // embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
-        // List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
+        embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
+        List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
 
-        // embeddingStore = new InMemoryEmbeddingStore<>();
-        // embeddingStore.addAll(embeddings, segments);
+        embeddingStore = new InMemoryEmbeddingStore<>();
+        embeddingStore.addAll(embeddings, segments); */
 
     }
 
@@ -224,9 +224,9 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
             //ResultSet fks = metaData.getImportedKeys(null, null, tableName);
 
             String primaryKeyColumn = "";
-            // if (pk.next()) {
-            //     primaryKeyColumn = pk.getString("COLUMN_NAME");
-            // }
+            /* if (pk.next()) {
+                 primaryKeyColumn = pk.getString("COLUMN_NAME");
+            } */
 
             createTableStatement
                     .append("CREATE TABLE ")
@@ -272,19 +272,19 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                 }
             }
 
-            // while (fks.next()) {
-            //     String fkColumnName = fks.getString("FKCOLUMN_NAME");
-            //     String pkTableName = fks.getString("PKTABLE_NAME");
-            //     String pkColumnName = fks.getString("PKCOLUMN_NAME");
-            //     createTableStatement
-            //             .append("  FOREIGN KEY (")
-            //             .append(fkColumnName)
-            //             .append(") REFERENCES ")
-            //             .append(pkTableName)
-            //             .append("(")
-            //             .append(pkColumnName)
-            //             .append("),\n");
-            // }
+            /* while (fks.next()) {
+                String fkColumnName = fks.getString("FKCOLUMN_NAME");
+                String pkTableName = fks.getString("PKTABLE_NAME");
+                String pkColumnName = fks.getString("PKCOLUMN_NAME");
+                createTableStatement
+                        .append("  FOREIGN KEY (")
+                        .append(fkColumnName)
+                        .append(") REFERENCES ")
+                        .append(pkTableName)
+                        .append("(")
+                        .append(pkColumnName)
+                        .append("),\n");
+            } */
 
             if (createTableStatement.charAt(createTableStatement.length() - 2) == ',') {
                 createTableStatement.delete(createTableStatement.length() - 2, createTableStatement.length());
@@ -367,17 +367,17 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
     protected Prompt createSystemPrompt(Query naturalLanguageQuery) {
 
-        // ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.builder()
-        //         .embeddingStore(embeddingStore)
-        //         .embeddingModel(embeddingModel)
-        //         .maxResults(3) // on each interaction we will retrieve the 2 most relevant segments
-        //         .minScore(0.5) // we want to retrieve segments at least somewhat similar to user query
-        //         .build();
-        // List<Content> content = contentRetriever.retrieve(naturalLanguageQuery);
+/*         ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.builder()
+        .embeddingStore(embeddingStore)
+        .embeddingModel(embeddingModel)
+        .maxResults(3) // on each interaction we will retrieve the 2 most relevant segments
+        .minScore(0.5) // we want to retrieve segments at least somewhat similar to user query
+        .build();
+        List<Content> content = contentRetriever.retrieve(naturalLanguageQuery);
 
-        // String relevantEmbeddings = content.stream()
-        //         .map(c -> c.textSegment().text()) // Extract the text from each Content object
-        //         .collect(Collectors.joining());
+        String relevantEmbeddings = content.stream()
+        .map(c -> c.textSegment().text()) // Extract the text from each Content object
+        .collect(Collectors.joining()); */
 
         Map<String, Object> variables = new HashMap<>();
         variables.put("sqlDialect", sqlDialect);

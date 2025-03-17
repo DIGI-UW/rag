@@ -51,23 +51,22 @@ public class AppConfig {
     @Value("${app.local-ai.model-name}")
     private String localAiModelName;
 
-    // @Bean
-    // public DataSource dataSource() {
-    //     MariaDbDataSource dataSource = new MariaDbDataSource();
-    //     try {
-    //         dataSource.setUrl(dbUrl);
-    //         dataSource.setUser(dbUser);
-    //         dataSource.setPassword(dbPassword);
-    //     } catch (Exception e) {
-    //         throw new RuntimeException("Failed to configure datasource", e);
-    //     }
-    //     return dataSource;
-    // }
+/*     @Bean
+    public DataSource dataSource() {
+        MariaDbDataSource dataSource = new MariaDbDataSource();
+        try {
+            dataSource.setUrl(dbUrl);
+            dataSource.setUser(dbUser);
+            dataSource.setPassword(dbPassword);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to configure datasource", e);
+        }
+        return dataSource;
+    } */
 
     @Bean
     public DataSource dataSource() {
         BasicDataSource dataSource = new BasicDataSource();
-        //HiveDataSource dataSource = new HiveDataSource();
         try {
             dataSource.setUrl(dbUrl);
             dataSource.setUsername(dbUser);
@@ -115,13 +114,13 @@ public class AppConfig {
     public ContentRetriever sqlDatabaseContentRetriever(DataSource dataSource, ChatLanguageModel geminiChatModel) {
         return SqlDatabaseContentRetriever.builder()
                 .dataSource(dataSource)
-                //.sqlDialect("MySQL")
                 .chatLanguageModel(geminiChatModel)
                 .build();
     }
 
     @Bean
     public Assistant assistant(ChatLanguageModel geminiChatModel, ContentRetriever sqlDatabaseContentRetriever) {
+        System.out.println("In the sassisntant");
         return AiServices.builder(Assistant.class)
                 .chatLanguageModel(geminiChatModel)
                 .contentRetriever(sqlDatabaseContentRetriever)
@@ -136,6 +135,6 @@ public class AppConfig {
 
     @Bean
     public JdbcMappingContext jdbcMappingContext() {
-        return new JdbcMappingContext(); // You can leave this as default for Hive
+        return new JdbcMappingContext();
     }
 }
