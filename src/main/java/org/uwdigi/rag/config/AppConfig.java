@@ -23,9 +23,13 @@ import dev.langchain4j.model.localai.LocalAiChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.service.AiServices;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Configuration
 public class AppConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(AppConfig.class);
 
     @Value("${spring.datasource.url}")
     private String dbUrl;
@@ -80,34 +84,58 @@ public class AppConfig {
 
     @Bean
     public ChatLanguageModel geminiChatModel() {
-        return GoogleAiGeminiChatModel.builder()
-                .apiKey(geminiApiKey)
-                .modelName("gemini-2.0-flash")
-                .logRequestsAndResponses(true)
-                .build();
+        log.info("Initializing Gemini Chat Model...");
+        try {
+            ChatLanguageModel model = GoogleAiGeminiChatModel.builder()
+                    .apiKey(geminiApiKey)
+                    .modelName("gemini-2.0-flash")
+                    .logRequestsAndResponses(true)
+                    .build();
+            log.info("Gemini Chat Model initialized successfully.");
+            return model;
+        } catch (Exception e) {
+            log.error("Failed to initialize Gemini Chat Model: {}", e.getMessage(), e);
+            throw new ModelInitializationException("Gemini Chat Model initialization failed", e);
+        }
     }
 
     @Bean
     public ChatLanguageModel ollamaChatModel() {
-        return OllamaChatModel.builder()
-                .baseUrl(ollamaBaseUrl)
-                .modelName(ollamaModelName)
-                .logRequests(true)
-                .logResponses(true)
-                .timeout(Duration.ofMinutes(5))
-                .build();
+        log.info("Initializing Ollama Chat Model...");
+        try {
+            ChatLanguageModel model = OllamaChatModel.builder()
+                    .baseUrl(ollamaBaseUrl)
+                    .modelName(ollamaModelName)
+                    .logRequests(true)
+                    .logResponses(true)
+                    .timeout(Duration.ofMinutes(5))
+                    .build();
+            log.info("Ollama Chat Model initialized successfully.");
+            return model;
+        } catch (Exception e) {
+            log.error("Failed to initialize Ollama Chat Model: {}", e.getMessage(), e);
+            throw new ModelInitializationException("Ollama Chat Model initialization failed", e);
+        }
     }
 
     @Bean
     public ChatLanguageModel localAiChatModel() {
-        return LocalAiChatModel.builder()
-                .baseUrl(localAiBaseUrl)
-                .modelName(localAiModelName)
-                .logRequests(true)
-                .logResponses(true)
-                .temperature(0.0)
-                .timeout(Duration.ofMinutes(5))
-                .build();
+        log.info("Initializing Local AI Chat Model...");
+        try {
+            ChatLanguageModel model = LocalAiChatModel.builder()
+                    .baseUrl(localAiBaseUrl)
+                    .modelName(localAiModelName)
+                    .logRequests(true)
+                    .logResponses(true)
+                    .temperature(0.0)
+                    .timeout(Duration.ofMinutes(5))
+                    .build();
+            log.info("Local AI Chat Model initialized successfully.");
+            return model;
+        } catch (Exception e) {
+            log.error("Failed to initialize Local AI Chat Model: {}", e.getMessage(), e);
+            throw new ModelInitializationException("Local AI Chat Model initialization failed", e);
+        }
     }
 
     @Bean
@@ -135,5 +163,12 @@ public class AppConfig {
     @Bean
     public JdbcMappingContext jdbcMappingContext() {
         return new JdbcMappingContext();
+    }
+}
+
+// Custom exception for model initialization errors
+class ModelInitializationException extends RuntimeException {
+    public ModelInitializationException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

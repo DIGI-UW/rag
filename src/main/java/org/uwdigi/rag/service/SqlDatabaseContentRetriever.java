@@ -51,6 +51,8 @@ import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.select.Select;
 import static org.uwdigi.rag.shared.Utils.toPath;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <b>
@@ -101,6 +103,8 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     // private final EmbeddingModel embeddingModel;
     static String MODEL_NAME = "llama3";
     static String BASE_URL = "http://localhost:11434";
+
+    private static final Logger log = LoggerFactory.getLogger(SqlDatabaseContentRetriever.class);
 
     /**
      * Creates an instance of a {@code SqlDatabaseContentRetriever}.
@@ -313,7 +317,6 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
     @Override
     public List<Content> retrieve(Query naturalLanguageQuery) {
-
         String sqlQuery = null;
         String errorMessage = null;
 
@@ -321,18 +324,17 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
         while (attemptsLeft > 0) {
             attemptsLeft--;
 
-            sqlQuery = generateSqlQuery(naturalLanguageQuery, sqlQuery, errorMessage);
-
-            System.out.println("sqlQuery");
-            System.out.println(sqlQuery);
-
-            sqlQuery = clean(sqlQuery);
-
-            if (!isSelect(sqlQuery)) {
-                return emptyList();
-            }
-
             try {
+                sqlQuery = generateSqlQuery(naturalLanguageQuery, sqlQuery, errorMessage);
+                System.out.println("sqlQuery");
+                System.out.println(sqlQuery);
+
+                sqlQuery = clean(sqlQuery);
+
+                if (!isSelect(sqlQuery)) {
+                    throw new IllegalArgumentException("Generated SQL is not a SELECT statement.");
+                }
+
                 validate(sqlQuery);
 
                 try (Connection connection = dataSource.getConnection();
@@ -342,8 +344,16 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                     Content content = format(result, sqlQuery);
                     return singletonList(content);
                 }
+            } catch (SQLException e) {
+                errorMessage = "SQL execution error: " + e.getMessage();
+                log.error(errorMessage, e);
+            } catch (IllegalArgumentException e) {
+                errorMessage = "Invalid SQL query: " + e.getMessage();
+                log.error(errorMessage, e);
+                break; // No point in retrying if the SQL is invalid
             } catch (Exception e) {
-                errorMessage = e.getMessage();
+                errorMessage = "Unexpected error: " + e.getMessage();
+                log.error(errorMessage, e);
             }
         }
 

@@ -44,9 +44,12 @@ public class Utils {
     public static Path toPath(String relativePath) {
         try {
             URL fileUrl = Utils.class.getClassLoader().getResource(relativePath);
+            if (fileUrl == null) {
+                throw new IllegalArgumentException("Resource not found: " + relativePath);
+            }
             return Paths.get(fileUrl.toURI());
         } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Invalid URI syntax for resource: " + relativePath, e);
         }
     }
 }
