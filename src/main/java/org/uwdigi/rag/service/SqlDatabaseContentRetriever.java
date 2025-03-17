@@ -97,8 +97,8 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     private final ChatLanguageModel chatLanguageModel;
 
     private final int maxRetries;
-    private final EmbeddingStore<TextSegment> embeddingStore;
-    private final EmbeddingModel embeddingModel;
+    // private final EmbeddingStore<TextSegment> embeddingStore;
+    // private final EmbeddingModel embeddingModel;
     static String MODEL_NAME = "llama3";
     static String BASE_URL = "http://localhost:11434";
 
@@ -158,7 +158,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
         this.promptTemplate = getOrDefault(promptTemplate, DEFAULT_PROMPT_TEMPLATE);
         this.chatLanguageModel = ensureNotNull(chatLanguageModel, "chatLanguageModel");
         this.maxRetries = getOrDefault(maxRetries, 1);
-        saveTextToFile(this.databaseStructure);
+        /* saveTextToFile(this.databaseStructure);
 
         DocumentParser documentParser = new TextDocumentParser();
         Document document = loadDocument(toPath("documents/output.txt"), documentParser);
@@ -166,18 +166,18 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
         DocumentSplitter splitter = DocumentSplitters.recursive(300, 0);
         List<TextSegment> segments = splitter.split(document);
 
-        
-         /* embeddingModel = OllamaEmbeddingModel.builder()
+       
+        embeddingModel = OllamaEmbeddingModel.builder()
          .baseUrl(BASE_URL)
          .modelName(MODEL_NAME)
-         .build(); */
-         
+         .build(); 
+        
 
         embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
         List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
 
         embeddingStore = new InMemoryEmbeddingStore<>();
-        embeddingStore.addAll(embeddings, segments);
+        embeddingStore.addAll(embeddings, segments); */
 
     }
 
@@ -199,11 +199,12 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
-
-            ResultSet tables = metaData.getTables(null, null, "%", new String[] { "TABLE" });
+            System.out.println(">>>>>>>>>>>>> >>>>>>>> Connected :" );
+            ResultSet tables = metaData.getTables(null, null, "%", new String[] { "VIEW" });
 
             while (tables.next()) {
                 String tableName = tables.getString("TABLE_NAME");
+                System.out.println(">>>>>>>>>>>>> >>>>>>>> Connected to Table :"  + tableName);
                 String createTableStatement = generateCreateTableStatement(tableName, metaData);
                 ddl.append(createTableStatement).append("\n");
             }
@@ -219,13 +220,13 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
         try {
             ResultSet columns = metaData.getColumns(null, null, tableName, null);
-            ResultSet pk = metaData.getPrimaryKeys(null, null, tableName);
-            ResultSet fks = metaData.getImportedKeys(null, null, tableName);
+            //ResultSet pk = metaData.getPrimaryKeys(null, null, tableName);
+            //ResultSet fks = metaData.getImportedKeys(null, null, tableName);
 
             String primaryKeyColumn = "";
-            if (pk.next()) {
-                primaryKeyColumn = pk.getString("COLUMN_NAME");
-            }
+            /* if (pk.next()) {
+                 primaryKeyColumn = pk.getString("COLUMN_NAME");
+            } */
 
             createTableStatement
                     .append("CREATE TABLE ")
@@ -271,7 +272,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                 }
             }
 
-            while (fks.next()) {
+            /* while (fks.next()) {
                 String fkColumnName = fks.getString("FKCOLUMN_NAME");
                 String pkTableName = fks.getString("PKTABLE_NAME");
                 String pkColumnName = fks.getString("PKCOLUMN_NAME");
@@ -283,7 +284,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                         .append("(")
                         .append(pkColumnName)
                         .append("),\n");
-            }
+            } */
 
             if (createTableStatement.charAt(createTableStatement.length() - 2) == ',') {
                 createTableStatement.delete(createTableStatement.length() - 2, createTableStatement.length());
@@ -366,21 +367,21 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
     protected Prompt createSystemPrompt(Query naturalLanguageQuery) {
 
-        ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.builder()
-                .embeddingStore(embeddingStore)
-                .embeddingModel(embeddingModel)
-                .maxResults(3) // on each interaction we will retrieve the 2 most relevant segments
-                .minScore(0.5) // we want to retrieve segments at least somewhat similar to user query
-                .build();
+/*         ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.builder()
+        .embeddingStore(embeddingStore)
+        .embeddingModel(embeddingModel)
+        .maxResults(3) // on each interaction we will retrieve the 2 most relevant segments
+        .minScore(0.5) // we want to retrieve segments at least somewhat similar to user query
+        .build();
         List<Content> content = contentRetriever.retrieve(naturalLanguageQuery);
 
         String relevantEmbeddings = content.stream()
-                .map(c -> c.textSegment().text()) // Extract the text from each Content object
-                .collect(Collectors.joining());
+        .map(c -> c.textSegment().text()) // Extract the text from each Content object
+        .collect(Collectors.joining()); */
 
         Map<String, Object> variables = new HashMap<>();
         variables.put("sqlDialect", sqlDialect);
-        variables.put("databaseStructure", relevantEmbeddings);
+        variables.put("databaseStructure", this.databaseStructure);
 
         return promptTemplate.apply(variables);
     }

@@ -4,14 +4,18 @@ import java.time.Duration;
 
 import javax.sql.DataSource;
 
+import org.apache.commons.dbcp.BasicDataSource;
+import org.apache.hive.jdbc.HiveDataSource;
 import org.mariadb.jdbc.MariaDbDataSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-// import org.uwdigi.rag.service.SqlDatabaseContentRetriever;
+import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.uwdigi.rag.service.SqlDatabaseContentRetriever;
 import org.uwdigi.rag.shared.Assistant;
 
-import dev.langchain4j.experimental.rag.content.retriever.sql.SqlDatabaseContentRetriever;
+//import dev.langchain4j.experimental.rag.content.retriever.sql.SqlDatabaseContentRetriever;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
@@ -47,12 +51,26 @@ public class AppConfig {
     @Value("${app.local-ai.model-name}")
     private String localAiModelName;
 
-    @Bean
+/*     @Bean
     public DataSource dataSource() {
         MariaDbDataSource dataSource = new MariaDbDataSource();
         try {
             dataSource.setUrl(dbUrl);
             dataSource.setUser(dbUser);
+            dataSource.setPassword(dbPassword);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to configure datasource", e);
+        }
+        return dataSource;
+    } */
+
+    @Bean
+    public DataSource dataSource() {
+        BasicDataSource dataSource = new BasicDataSource();
+        try {
+            dataSource.setUrl(dbUrl);
+            dataSource.setUsername(dbUser);
+            dataSource.setDriverClassName("org.apache.hive.jdbc.HiveDriver");
             dataSource.setPassword(dbPassword);
         } catch (Exception e) {
             throw new RuntimeException("Failed to configure datasource", e);
@@ -96,17 +114,27 @@ public class AppConfig {
     public ContentRetriever sqlDatabaseContentRetriever(DataSource dataSource, ChatLanguageModel geminiChatModel) {
         return SqlDatabaseContentRetriever.builder()
                 .dataSource(dataSource)
-                .sqlDialect("MySQL")
                 .chatLanguageModel(geminiChatModel)
                 .build();
     }
 
     @Bean
     public Assistant assistant(ChatLanguageModel geminiChatModel, ContentRetriever sqlDatabaseContentRetriever) {
+        System.out.println("In the sassisntant");
         return AiServices.builder(Assistant.class)
                 .chatLanguageModel(geminiChatModel)
                 .contentRetriever(sqlDatabaseContentRetriever)
                 .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
                 .build();
+    }
+
+    @Bean
+    public JdbcTemplate jdbcTemplate(DataSource dataSource) {
+        return new JdbcTemplate(dataSource);
+    }
+
+    @Bean
+    public JdbcMappingContext jdbcMappingContext() {
+        return new JdbcMappingContext();
     }
 }
