@@ -120,7 +120,6 @@ public class AppConfig {
 
     @Bean
     public Assistant assistant(ChatLanguageModel geminiChatModel, ContentRetriever sqlDatabaseContentRetriever) {
-        System.out.println("In the sassisntant");
         return AiServices.builder(Assistant.class)
                 .chatLanguageModel(geminiChatModel)
                 .contentRetriever(sqlDatabaseContentRetriever)
