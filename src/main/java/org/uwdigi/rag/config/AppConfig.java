@@ -55,6 +55,8 @@ public class AppConfig {
     @Value("${app.local-ai.model-name}")
     private String localAiModelName;
 
+    @Value("${app.chatWindow.memory}")
+    private int maxWindowChatMemory;
 /*     @Bean
     public DataSource dataSource() {
         MariaDbDataSource dataSource = new MariaDbDataSource();
@@ -151,7 +153,7 @@ public class AppConfig {
         return AiServices.builder(Assistant.class)
                 .chatLanguageModel(geminiChatModel)
                 .contentRetriever(sqlDatabaseContentRetriever)
-                .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
+                .chatMemory(MessageWindowChatMemory.withMaxMessages(maxWindowChatMemory))
                 .build();
     }
 
