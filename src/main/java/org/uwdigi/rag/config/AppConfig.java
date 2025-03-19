@@ -25,6 +25,8 @@ import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.service.AiServices;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.uwdigi.rag.service.ModelFactory;
+// import org.uwdigi.rag.exception.ModelInitializationException;
 
 @Configuration
 public class AppConfig {
@@ -57,18 +59,14 @@ public class AppConfig {
 
     @Value("${app.chatWindow.memory}")
     private int maxWindowChatMemory;
-/*     @Bean
-    public DataSource dataSource() {
-        MariaDbDataSource dataSource = new MariaDbDataSource();
-        try {
-            dataSource.setUrl(dbUrl);
-            dataSource.setUser(dbUser);
-            dataSource.setPassword(dbPassword);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to configure datasource", e);
-        }
-        return dataSource;
-    } */
+
+    private final ModelProperties modelProperties;
+    private final ModelFactory modelFactory;
+
+    public AppConfig(ModelProperties modelProperties, ModelFactory modelFactory) {
+        this.modelProperties = modelProperties;
+        this.modelFactory = modelFactory;
+    }
 
     @Bean
     public DataSource dataSource() {
@@ -85,58 +83,26 @@ public class AppConfig {
     }
 
     @Bean
-    public ChatLanguageModel geminiChatModel() {
-        log.info("Initializing Gemini Chat Model...");
-        try {
-            ChatLanguageModel model = GoogleAiGeminiChatModel.builder()
-                    .apiKey(geminiApiKey)
-                    .modelName("gemini-2.0-flash")
-                    .logRequestsAndResponses(true)
-                    .build();
-            log.info("Gemini Chat Model initialized successfully.");
-            return model;
-        } catch (Exception e) {
-            log.error("Failed to initialize Gemini Chat Model: {}", e.getMessage(), e);
-            throw new ModelInitializationException("Gemini Chat Model initialization failed", e);
-        }
-    }
+    public ChatLanguageModel chatLanguageModel() {
+        log.info("Initializing chat language model with type: {}",
+                modelProperties.getActiveModel());
 
-    @Bean
-    public ChatLanguageModel ollamaChatModel() {
-        log.info("Initializing Ollama Chat Model...");
         try {
-            ChatLanguageModel model = OllamaChatModel.builder()
-                    .baseUrl(ollamaBaseUrl)
-                    .modelName(ollamaModelName)
-                    .logRequests(true)
-                    .logResponses(true)
-                    .timeout(Duration.ofMinutes(5))
-                    .build();
-            log.info("Ollama Chat Model initialized successfully.");
-            return model;
+            return modelFactory.createModel(modelProperties.getActiveModel());
         } catch (Exception e) {
-            log.error("Failed to initialize Ollama Chat Model: {}", e.getMessage(), e);
-            throw new ModelInitializationException("Ollama Chat Model initialization failed", e);
-        }
-    }
-
-    @Bean
-    public ChatLanguageModel localAiChatModel() {
-        log.info("Initializing Local AI Chat Model...");
-        try {
-            ChatLanguageModel model = LocalAiChatModel.builder()
-                    .baseUrl(localAiBaseUrl)
-                    .modelName(localAiModelName)
-                    .logRequests(true)
-                    .logResponses(true)
-                    .temperature(0.0)
-                    .timeout(Duration.ofMinutes(5))
-                    .build();
-            log.info("Local AI Chat Model initialized successfully.");
-            return model;
-        } catch (Exception e) {
-            log.error("Failed to initialize Local AI Chat Model: {}", e.getMessage(), e);
-            throw new ModelInitializationException("Local AI Chat Model initialization failed", e);
+            if (modelProperties.isFallbackEnabled()) {
+                log.warn("Failed to initialize primary model. Falling back to: {}",
+                        modelProperties.getFallbackModel());
+                try {
+                    return modelFactory.createModel(modelProperties.getFallbackModel());
+                } catch (Exception fallbackException) {
+                    throw new ModelInitializationException(
+                            "Both primary and fallback model initialization failed",
+                            fallbackException);
+                }
+            }
+            throw new ModelInitializationException(
+                    "Model initialization failed and no fallback is configured", e);
         }
     }
 
