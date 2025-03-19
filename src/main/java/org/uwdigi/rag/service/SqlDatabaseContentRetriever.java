@@ -15,23 +15,15 @@ import static java.util.Collections.singletonList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.sql.DataSource;
 
 import dev.langchain4j.Experimental;
-import dev.langchain4j.data.document.Document;
-import dev.langchain4j.data.document.DocumentParser;
-import dev.langchain4j.data.document.DocumentSplitter;
-import static dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocument;
-import dev.langchain4j.data.document.parser.TextDocumentParser;
-import dev.langchain4j.data.document.splitter.DocumentSplitters;
-import dev.langchain4j.data.embedding.Embedding;
-import dev.langchain4j.data.message.AiMessage;
-import dev.langchain4j.data.message.ChatMessage;
-import dev.langchain4j.data.message.SystemMessage;
-import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.data.document.Metadata;
+
+
 import static dev.langchain4j.internal.Utils.getOrDefault;
 import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
 import dev.langchain4j.model.chat.ChatLanguageModel;
@@ -39,7 +31,6 @@ import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.bgesmallenv15q.BgeSmallEnV15QuantizedEmbeddingModel;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.input.PromptTemplate;
-import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
@@ -53,6 +44,20 @@ import net.sf.jsqlparser.statement.select.Select;
 import static org.uwdigi.rag.shared.Utils.toPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+
+
+import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.document.DocumentParser;
+import static dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocument;
+import dev.langchain4j.data.document.parser.TextDocumentParser;
+import dev.langchain4j.data.document.splitter.DocumentByRegexSplitter;
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.data.segment.TextSegment;
 
 /**
  * <b>
@@ -89,8 +94,11 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                     "You have access to a {{sqlDialect}} database with the following structure:\n" +
                     "{{databaseStructure}}\n" +
                     "If a user asks a question that can be answered by querying this database, generate an SQL SELECT query.\n" +
-                    "Do not output anything else aside from a valid SQL statement!"
-    );
+                    "Do not make any assumptions about the data or the contents of the database that are not explicitly mentioned in the provided schema.\n" +
+                    "Only output a valid SQL SELECT query and nothing else.\n" +
+                    "If the user's question cannot be answered by the provided database structure, indicate that no query can be generated based on the available information."  
+
+                    );
     private final DataSource dataSource;
     private final String sqlDialect;
     private final String databaseStructure;
@@ -99,8 +107,8 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     private final ChatLanguageModel chatLanguageModel;
 
     private final int maxRetries;
-    // private final EmbeddingStore<TextSegment> embeddingStore;
-    // private final EmbeddingModel embeddingModel;
+    private final EmbeddingStore<TextSegment> embeddingStore;
+    private final EmbeddingModel embeddingModel;
     static String MODEL_NAME = "llama3";
     static String BASE_URL = "http://localhost:11434";
 
@@ -162,27 +170,119 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
         this.promptTemplate = getOrDefault(promptTemplate, DEFAULT_PROMPT_TEMPLATE);
         this.chatLanguageModel = ensureNotNull(chatLanguageModel, "chatLanguageModel");
         this.maxRetries = getOrDefault(maxRetries, 1);
-        /* saveTextToFile(this.databaseStructure);
+
+        String[] columns = {"obs_name", "obs_value"};
+        List<Object[]> obs = selectColumnsFromTable("observation_flat", columns, dataSource);
+
+        // Process the results
+        for (Object[] row : obs) {
+            System.out.println("ID: " + row[0] + ", Name: " + row[1]);
+        }
+        StringBuilder output = new StringBuilder();
+
+        // Iterate over each row
+        for (Object[] row : obs) {
+            // Iterate over each value in the row
+            for (Object value : row) {
+                output.append(value).append("\n"); 
+            }
+        }
+        
+         saveTextToFile(output.toString());
 
         DocumentParser documentParser = new TextDocumentParser();
         Document document = loadDocument(toPath("documents/output.txt"), documentParser);
 
-        DocumentSplitter splitter = DocumentSplitters.recursive(300, 0);
-        List<TextSegment> segments = splitter.split(document);
+        //DocumentSplitter splitter = DocumentSplitters.recursive(300, 0);
+        DocumentByRegexSplitter splitter = new DocumentByRegexSplitter("***","#",1,0);
 
-       
-        embeddingModel = OllamaEmbeddingModel.builder()
+        //List<TextSegment> segments = splitter.split(document);
+        List<TextSegment> segments = split(document);
+
+
+        /*         embeddingModel = OllamaEmbeddingModel.builder()
          .baseUrl(BASE_URL)
          .modelName(MODEL_NAME)
-         .build(); 
+         .build();  */
         
 
-        embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
+        embeddingModel  = new BgeSmallEnV15QuantizedEmbeddingModel();
         List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
 
-        embeddingStore = new InMemoryEmbeddingStore<>();
-        embeddingStore.addAll(embeddings, segments); */
+         embeddingStore = new InMemoryEmbeddingStore<>();
+        embeddingStore.addAll(embeddings, segments);
 
+    }
+
+    public List<TextSegment> split(Document document) {
+        ensureNotNull(document, "document");
+
+        List<TextSegment> segments = new ArrayList<>();
+
+        String[] parts = document.text().split("\n");
+
+        for (int i = 0; i < parts.length; i++) {
+            segments.add(createSegment(parts[i], document, i));
+        }
+        return segments;
+    }
+
+    static TextSegment createSegment(String text, Document document, int index) {
+        Metadata metadata = document.metadata().copy().put("index", String.valueOf(index));
+        return TextSegment.from(text, metadata);
+    }
+
+        /**
+     * Selects all rows with specified columns from a given table and returns flattened array of values
+     * 
+     * @param tableName The name of the table to query
+     * @param columns Array of column names to select
+     * @return List of Object arrays, where each array represents a row with values in the same order as specified columns
+     */
+    private static List<Object[]> selectColumnsFromTable(String tableName, String[] columns, DataSource dataSource) {
+        List<Object[]> results = new ArrayList<>();
+        
+        // Ensure we have columns to select
+        if (columns.length == 0) {
+            throw new IllegalArgumentException("At least one column must be specified");
+        }
+        
+        // Build the SQL query with only the specified columns
+        StringBuilder queryBuilder = new StringBuilder("SELECT ");
+        
+        for (int i = 0; i < columns.length; i++) {
+            queryBuilder.append(columns[i]);
+            if (i < columns.length - 1) {
+                queryBuilder.append(", ");
+            }
+        }
+        
+        queryBuilder.append(" FROM ").append(tableName);
+        String query = queryBuilder.toString();
+        
+        // Execute the query
+        //try (Connection conn = DriverManager.getConnection("jdbc:hive2://spark:10000");
+        try (Connection connection = dataSource.getConnection()) {
+            Statement stmt = connection.createStatement();
+            ResultSet rs = stmt.executeQuery(query);
+            // Process each row
+            while (rs.next()) {
+                // Create an array with the same length as the columns array
+                Object[] rowValues = new Object[columns.length];
+                
+                // Fill the array with values in the same order as the columns array
+                for (int i = 0; i < columns.length; i++) {
+                    rowValues[i] = rs.getObject(columns[i]);
+                }
+                
+                results.add(rowValues);
+            }
+        } catch (SQLException e) {
+            System.err.println("Error executing query: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        return results;
     }
 
     // TODO (for v2)
@@ -329,6 +429,8 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                 System.out.println("sqlQuery");
                 System.out.println(sqlQuery);
 
+
+                
                 sqlQuery = clean(sqlQuery);
 
                 if (!isSelect(sqlQuery)) {
@@ -397,6 +499,9 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     }
 
     protected String clean(String sqlQuery) {
+
+        sqlQuery = subsituteMissingParameters(sqlQuery);
+
         if (sqlQuery.contains("```sql")) {
             return sqlQuery.substring(sqlQuery.indexOf("```sql") + 6, sqlQuery.lastIndexOf("```"));
         } else if (sqlQuery.contains("```")) {
@@ -405,17 +510,79 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
         return sqlQuery;
     }
 
+    protected String subsituteMissingParameters(String sqlQuery) {
+
+        ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.builder()
+        .embeddingStore(embeddingStore)
+        .embeddingModel(embeddingModel)
+        .maxResults(1) // on each interaction we will retrieve the 1 most relevant segments
+        .minScore(0.8) // we want to retrieve segments at least somewhat similar to user query
+        .build();
+
+        // List to store index information
+        List<int[]> quoteIndices = new ArrayList<>();
+        
+        // Regular expression to match content in double or single quotes
+        String regex = "(['\"]).*?\\1";
+        
+        // Pattern and Matcher to find quoted substrings
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(sqlQuery);
+        
+        StringBuilder result = new StringBuilder();
+        int lastIndex = 0;
+        
+        // Iterate through all matches
+        while (matcher.find()) {
+
+            // Get the matched string (the content inside the quotes)
+            String matchedString = matcher.group();
+            
+            // Save the indices of the quoted substrings
+            quoteIndices.add(new int[] {matcher.start(), matcher.end()});
+
+            // Append the portion before the current match
+            result.append(sqlQuery, lastIndex, matcher.start());
+
+            Query query = new Query(matchedString);
+            List<Content> content = contentRetriever.retrieve(query);
+
+            // Append the substitution value (replacing the quoted text)
+            result.append("'" + content.get(0).textSegment().text() + "'");
+
+            // Update the last index processed
+            lastIndex = matcher.end();
+        }
+
+        // Append the remaining part of the string after the last match
+        result.append(sqlQuery.substring(lastIndex));
+
+        return result.toString();
+    }
+
     protected void validate(String sqlQuery) {
 
     }
 
     protected boolean isSelect(String sqlQuery) {
-        try {
+        // Commenting this out to allow for special syntax in sparkSQL
+        /* try {
             net.sf.jsqlparser.statement.Statement statement = CCJSqlParserUtil.parse(sqlQuery);
             return statement instanceof Select;
         } catch (JSQLParserException e) {
             return false;
+        } */
+
+        if (sqlQuery == null || sqlQuery.trim().isEmpty()) {
+            return false;
         }
+        
+        String normalizedQuery = sqlQuery.trim().toUpperCase();
+        if (normalizedQuery.startsWith("SELECT")) {
+            return true;
+        }
+        return true;
+
     }
 
     protected String execute(String sqlQuery, Statement statement) throws SQLException {
