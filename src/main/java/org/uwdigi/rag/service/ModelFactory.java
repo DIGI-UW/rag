@@ -1,0 +1,111 @@
+package org.uwdigi.rag.service;
+
+import java.time.Duration;
+
+import org.springframework.stereotype.Service;
+import org.uwdigi.rag.config.ModelConfig;
+import org.uwdigi.rag.model.ModelType;
+
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.anthropic.AnthropicChatModel;
+import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
+import dev.langchain4j.model.localai.LocalAiChatModel;
+import dev.langchain4j.model.ollama.OllamaChatModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Factory service for creating LLM instances based on the currently active
+ * model type.
+ */
+@Service
+public class ModelFactory {
+
+    private static final Logger log = LoggerFactory.getLogger(ModelFactory.class);
+    private final ModelConfig modelConfig;
+
+    public ModelFactory(ModelConfig modelConfig) {
+        this.modelConfig = modelConfig;
+    }
+
+    /**
+     * Creates an instance of ChatLanguageModel based on the currently active model
+     * type.
+     */
+    public ChatLanguageModel createModel() {
+        log.info("Creating model of type: {}", modelConfig.getActiveModel());
+
+        try {
+            return switch (modelConfig.getActiveModel()) {
+                case GEMINI -> createGeminiModel();
+                case CLAUDE -> createClaudeModel();
+                case DEEPSEEK -> createDeepseekModel();
+                case OLLAMA -> createOllamaModel();
+                case LOCAL_AI -> createLocalAiModel();
+            };
+        } catch (Exception e) {
+            log.error("Failed to create model: {}", e.getMessage(), e);
+            throw new ModelInitializationException("Failed to initialize model", e);
+        }
+    }
+
+    private ChatLanguageModel createGeminiModel() {
+        log.info("Initializing Gemini Chat Model...");
+        return GoogleAiGeminiChatModel.builder()
+                .apiKey(modelConfig.getGeminiApiKey())
+                .modelName("gemini-pro")
+                .logRequestsAndResponses(true)
+                .timeout(Duration.ofMinutes(2))
+                .build();
+    }
+
+    private ChatLanguageModel createClaudeModel() {
+        log.info("Initializing Claude Chat Model...");
+        return AnthropicChatModel.builder()
+                .apiKey(modelConfig.getClaudeApiKey())
+                .modelName("claude-3-sonnet-20240229")
+                .timeout(Duration.ofMinutes(2))
+                .build();
+    }
+
+    private ChatLanguageModel createDeepseekModel() {
+        log.info("Initializing Deepseek Chat Model via LocalAI...");
+        return LocalAiChatModel.builder()
+                .baseUrl(modelConfig.getLocalAiBaseUrl())
+                .modelName("deepseek-coder")
+                .timeout(Duration.ofMinutes(5))
+                .build();
+    }
+
+    private ChatLanguageModel createOllamaModel() {
+        log.info("Initializing Ollama Chat Model...");
+        return OllamaChatModel.builder()
+                .baseUrl(modelConfig.getOllamaBaseUrl())
+                .modelName(modelConfig.getOllamaModelName())
+                .logRequests(true)
+                .logResponses(true)
+                .timeout(Duration.ofMinutes(5))
+                .build();
+    }
+
+    private ChatLanguageModel createLocalAiModel() {
+        log.info("Initializing Local AI Chat Model...");
+        return LocalAiChatModel.builder()
+                .baseUrl(modelConfig.getLocalAiBaseUrl())
+                .modelName(modelConfig.getLocalAiModelName())
+                .logRequests(true)
+                .logResponses(true)
+                .temperature(0.0)
+                .timeout(Duration.ofMinutes(5))
+                .build();
+    }
+}
+
+/**
+ * Custom exception for model initialization errors
+ */
+class ModelInitializationException extends RuntimeException {
+    public ModelInitializationException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}

@@ -53,6 +53,7 @@ import net.sf.jsqlparser.statement.select.Select;
 import static org.uwdigi.rag.shared.Utils.toPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 /**
  * <b>
@@ -81,6 +82,7 @@ import org.slf4j.LoggerFactory;
  * so it is advised to experiment with it and see what works best for your use
  * case.
  */
+@Service
 @Experimental
 public class SqlDatabaseContentRetriever implements ContentRetriever {
 
@@ -88,16 +90,16 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
             "You are an expert in writing SQL queries.\n" +
                     "You have access to a {{sqlDialect}} database with the following structure:\n" +
                     "{{databaseStructure}}\n" +
-                    "If a user asks a question that can be answered by querying this database, generate an SQL SELECT query.\n" +
-                    "Do not output anything else aside from a valid SQL statement!"
-    );
+                    "If a user asks a question that can be answered by querying this database, generate an SQL SELECT query.\n"
+                    +
+                    "Do not output anything else aside from a valid SQL statement!");
     private final DataSource dataSource;
     private final String sqlDialect;
     private final String databaseStructure;
 
     private final PromptTemplate promptTemplate;
     private final ChatLanguageModel chatLanguageModel;
-
+    private final ModelFactory modelFactory;
     private final int maxRetries;
     // private final EmbeddingStore<TextSegment> embeddingStore;
     // private final EmbeddingModel embeddingModel;
@@ -142,6 +144,9 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
      * @param chatLanguageModel The {@link ChatLanguageModel} to be used for
      *                          generating SQL queries.
      *                          This is a mandatory parameter.
+     * @param modelFactory      The {@link ModelFactory} to be used for runtime
+     *                          model switching.
+     *                          This is an optional parameter.
      * @param maxRetries        The maximum number of retries to perform if the
      *                          database cannot execute the generated SQL query.
      *                          An error message will be sent back to the LLM to try
@@ -155,33 +160,46 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
             String databaseStructure,
             PromptTemplate promptTemplate,
             ChatLanguageModel chatLanguageModel,
+            ModelFactory modelFactory,
             Integer maxRetries) {
         this.dataSource = ensureNotNull(dataSource, "dataSource");
         this.sqlDialect = getOrDefault(sqlDialect, () -> getSqlDialect(dataSource));
         this.databaseStructure = getOrDefault(databaseStructure, () -> generateDDL(dataSource));
         this.promptTemplate = getOrDefault(promptTemplate, DEFAULT_PROMPT_TEMPLATE);
-        this.chatLanguageModel = ensureNotNull(chatLanguageModel, "chatLanguageModel");
+
+        // If both chatLanguageModel and modelFactory are provided, use modelFactory
+        if (modelFactory != null) {
+            this.modelFactory = modelFactory;
+            this.chatLanguageModel = null;
+        } else {
+            this.chatLanguageModel = ensureNotNull(chatLanguageModel, "chatLanguageModel");
+            this.modelFactory = null;
+        }
+
         this.maxRetries = getOrDefault(maxRetries, 1);
-        /* saveTextToFile(this.databaseStructure);
-
-        DocumentParser documentParser = new TextDocumentParser();
-        Document document = loadDocument(toPath("documents/output.txt"), documentParser);
-
-        DocumentSplitter splitter = DocumentSplitters.recursive(300, 0);
-        List<TextSegment> segments = splitter.split(document);
-
-       
-        embeddingModel = OllamaEmbeddingModel.builder()
-         .baseUrl(BASE_URL)
-         .modelName(MODEL_NAME)
-         .build(); 
-        
-
-        embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
-        List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
-
-        embeddingStore = new InMemoryEmbeddingStore<>();
-        embeddingStore.addAll(embeddings, segments); */
+        /*
+         * saveTextToFile(this.databaseStructure);
+         * 
+         * DocumentParser documentParser = new TextDocumentParser();
+         * Document document = loadDocument(toPath("documents/output.txt"),
+         * documentParser);
+         * 
+         * DocumentSplitter splitter = DocumentSplitters.recursive(300, 0);
+         * List<TextSegment> segments = splitter.split(document);
+         * 
+         * 
+         * embeddingModel = OllamaEmbeddingModel.builder()
+         * .baseUrl(BASE_URL)
+         * .modelName(MODEL_NAME)
+         * .build();
+         * 
+         * 
+         * embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
+         * List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
+         * 
+         * embeddingStore = new InMemoryEmbeddingStore<>();
+         * embeddingStore.addAll(embeddings, segments);
+         */
 
     }
 
@@ -203,12 +221,12 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
-            System.out.println(">>>>>>>>>>>>> >>>>>>>> Connected :" );
+            System.out.println(">>>>>>>>>>>>> >>>>>>>> Connected :");
             ResultSet tables = metaData.getTables(null, null, "%", new String[] { "VIEW" });
 
             while (tables.next()) {
                 String tableName = tables.getString("TABLE_NAME");
-                System.out.println(">>>>>>>>>>>>> >>>>>>>> Connected to Table :"  + tableName);
+                System.out.println(">>>>>>>>>>>>> >>>>>>>> Connected to Table :" + tableName);
                 String createTableStatement = generateCreateTableStatement(tableName, metaData);
                 ddl.append(createTableStatement).append("\n");
             }
@@ -224,13 +242,15 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
         try {
             ResultSet columns = metaData.getColumns(null, null, tableName, null);
-            //ResultSet pk = metaData.getPrimaryKeys(null, null, tableName);
-            //ResultSet fks = metaData.getImportedKeys(null, null, tableName);
+            // ResultSet pk = metaData.getPrimaryKeys(null, null, tableName);
+            // ResultSet fks = metaData.getImportedKeys(null, null, tableName);
 
             String primaryKeyColumn = "";
-            /* if (pk.next()) {
-                 primaryKeyColumn = pk.getString("COLUMN_NAME");
-            } */
+            /*
+             * if (pk.next()) {
+             * primaryKeyColumn = pk.getString("COLUMN_NAME");
+             * }
+             */
 
             createTableStatement
                     .append("CREATE TABLE ")
@@ -276,19 +296,21 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                 }
             }
 
-            /* while (fks.next()) {
-                String fkColumnName = fks.getString("FKCOLUMN_NAME");
-                String pkTableName = fks.getString("PKTABLE_NAME");
-                String pkColumnName = fks.getString("PKCOLUMN_NAME");
-                createTableStatement
-                        .append("  FOREIGN KEY (")
-                        .append(fkColumnName)
-                        .append(") REFERENCES ")
-                        .append(pkTableName)
-                        .append("(")
-                        .append(pkColumnName)
-                        .append("),\n");
-            } */
+            /*
+             * while (fks.next()) {
+             * String fkColumnName = fks.getString("FKCOLUMN_NAME");
+             * String pkTableName = fks.getString("PKTABLE_NAME");
+             * String pkColumnName = fks.getString("PKCOLUMN_NAME");
+             * createTableStatement
+             * .append("  FOREIGN KEY (")
+             * .append(fkColumnName)
+             * .append(") REFERENCES ")
+             * .append(pkTableName)
+             * .append("(")
+             * .append(pkColumnName)
+             * .append("),\n");
+             * }
+             */
 
             if (createTableStatement.charAt(createTableStatement.length() - 2) == ',') {
                 createTableStatement.delete(createTableStatement.length() - 2, createTableStatement.length());
@@ -363,6 +385,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     protected String generateSqlQuery(Query naturalLanguageQuery, String previousSqlQuery,
             String previousErrorMessage) {
 
+        ChatLanguageModel model = getModel();
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(createSystemPrompt(naturalLanguageQuery).toSystemMessage());
         messages.add(UserMessage.from(naturalLanguageQuery.text()));
@@ -372,22 +395,38 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
             messages.add(UserMessage.from(previousErrorMessage));
         }
 
-        return chatLanguageModel.chat(messages).aiMessage().text();
+        return model.chat(messages).aiMessage().text();
+    }
+
+    /**
+     * Gets the appropriate model instance, either from injected ChatLanguageModel
+     * or from ModelFactory (for runtime switching)
+     */
+    private ChatLanguageModel getModel() {
+        if (modelFactory != null) {
+            return modelFactory.createModel();
+        }
+        return chatLanguageModel;
     }
 
     protected Prompt createSystemPrompt(Query naturalLanguageQuery) {
 
-/*         ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.builder()
-        .embeddingStore(embeddingStore)
-        .embeddingModel(embeddingModel)
-        .maxResults(3) // on each interaction we will retrieve the 2 most relevant segments
-        .minScore(0.5) // we want to retrieve segments at least somewhat similar to user query
-        .build();
-        List<Content> content = contentRetriever.retrieve(naturalLanguageQuery);
-
-        String relevantEmbeddings = content.stream()
-        .map(c -> c.textSegment().text()) // Extract the text from each Content object
-        .collect(Collectors.joining()); */
+        /*
+         * ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.builder()
+         * .embeddingStore(embeddingStore)
+         * .embeddingModel(embeddingModel)
+         * .maxResults(3) // on each interaction we will retrieve the 2 most relevant
+         * segments
+         * .minScore(0.5) // we want to retrieve segments at least somewhat similar to
+         * user query
+         * .build();
+         * List<Content> content = contentRetriever.retrieve(naturalLanguageQuery);
+         * 
+         * String relevantEmbeddings = content.stream()
+         * .map(c -> c.textSegment().text()) // Extract the text from each Content
+         * object
+         * .collect(Collectors.joining());
+         */
 
         Map<String, Object> variables = new HashMap<>();
         variables.put("sqlDialect", sqlDialect);
