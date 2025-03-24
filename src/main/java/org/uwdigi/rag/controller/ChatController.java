@@ -21,17 +21,20 @@ public class ChatController {
     
     @PostMapping
     public ResponseEntity<ChatResponse> chat(@RequestBody ChatRequest request) {
-        String response = assistantService.processQuery(request.getQuery());
+        String response = assistantService.processQuery(request.getQuery(), request.getModel());
         return ResponseEntity.ok(new ChatResponse(response));
     }
     
     public static class ChatRequest {
         private String query;
-        
+        private String model;
+
         public ChatRequest() {}
         
-        public ChatRequest(String query) {
+        public ChatRequest(String query, String model) {
             this.query = query;
+            this.model = model;
+
         }
         
         public String getQuery() {
@@ -41,6 +44,15 @@ public class ChatController {
         public void setQuery(String query) {
             this.query = query;
         }
+
+        public String getModel() {
+            return model;
+        }
+        
+        public void setModel(String model) {
+            this.model = model;
+        }
+
     }
     
     public static class ChatResponse {
