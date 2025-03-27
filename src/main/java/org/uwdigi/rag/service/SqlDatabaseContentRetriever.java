@@ -203,12 +203,11 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
-            System.out.println(">>>>>>>>>>>>> >>>>>>>> Connected :" );
-            ResultSet tables = metaData.getTables(null, null, "%", new String[] { "VIEW" });
+
+            ResultSet tables = metaData.getTables(null, null, "%", new String[] { "TABLE" });
 
             while (tables.next()) {
                 String tableName = tables.getString("TABLE_NAME");
-                System.out.println(">>>>>>>>>>>>> >>>>>>>> Connected to Table :"  + tableName);
                 String createTableStatement = generateCreateTableStatement(tableName, metaData);
                 ddl.append(createTableStatement).append("\n");
             }
@@ -219,18 +218,19 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
         return ddl.toString();
     }
 
+
     private static String generateCreateTableStatement(String tableName, DatabaseMetaData metaData) {
         StringBuilder createTableStatement = new StringBuilder();
 
         try {
             ResultSet columns = metaData.getColumns(null, null, tableName, null);
-            //ResultSet pk = metaData.getPrimaryKeys(null, null, tableName);
-            //ResultSet fks = metaData.getImportedKeys(null, null, tableName);
+            ResultSet pk = metaData.getPrimaryKeys(null, null, tableName);
+            ResultSet fks = metaData.getImportedKeys(null, null, tableName);
 
             String primaryKeyColumn = "";
-            /* if (pk.next()) {
-                 primaryKeyColumn = pk.getString("COLUMN_NAME");
-            } */
+            if (pk.next()) {
+                primaryKeyColumn = pk.getString("COLUMN_NAME");
+            }
 
             createTableStatement
                     .append("CREATE TABLE ")
@@ -276,7 +276,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                 }
             }
 
-            /* while (fks.next()) {
+            while (fks.next()) {
                 String fkColumnName = fks.getString("FKCOLUMN_NAME");
                 String pkTableName = fks.getString("PKTABLE_NAME");
                 String pkColumnName = fks.getString("PKCOLUMN_NAME");
@@ -288,7 +288,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                         .append("(")
                         .append(pkColumnName)
                         .append("),\n");
-            } */
+            }
 
             if (createTableStatement.charAt(createTableStatement.length() - 2) == ',') {
                 createTableStatement.delete(createTableStatement.length() - 2, createTableStatement.length());
@@ -314,6 +314,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
         return createTableStatement.toString();
     }
+
 
     @Override
     public List<Content> retrieve(Query naturalLanguageQuery) {
@@ -406,6 +407,8 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     }
 
     protected void validate(String sqlQuery) {
+        // return isValidSqlQuery(sql)   // Ensure only SELECT statements
+        //     && !hasSuspiciousPatterns(sql)  // Prevent SQL injection patterns
 
     }
 
@@ -417,6 +420,63 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
             return false;
         }
     }
+
+    private boolean isValidSqlQuery(String sql) {
+    try {
+        Statement stmt = CCJSqlParserUtil.parse(sql);
+
+        // Ensure the parsed query is a SELECT statement
+        //If DELETE, UPDATE, INSERT, etc., are used, it logs and rejects the query.
+        if (stmt instanceof Select) {
+            return true;
+        } else {
+            log.error("Rejected query: Non-SELECT statement detected -> {}", sql);
+            return false;
+        }
+    } catch (JSQLParserException e) {
+        log.error("Invalid SQL query: {}", sql, e);
+        return false;
+    }
+    }
+     
+
+
+    // Use regex to detect Queries with 
+    // potential multi-statement attacks and SQL injection patterns (UNION SELECT, comments, etc.).
+private boolean hasSuspiciousPatterns(String sql) {
+    String sqlUpper = sql.toUpperCase();
+
+    // Detect multiple statements
+    if (sqlUpper.contains(";")) {
+        log.error("Rejected query: Contains semicolon -> {}", sql);
+        return true;
+    }
+
+    // Detect SQL injection patterns
+    String[] dangerousPatterns = { " UNION ", "--", "#", "/*", " OR 1=1", " OR '1'='1'" };
+    for (String pattern : dangerousPatterns) {
+        if (sqlUpper.contains(pattern)) {
+            log.error("Rejected query: Possible SQL injection -> {}", sql);
+            return true;
+        }
+    }
+    return false;
+    }
+
+
+
+     /**
+     * Helper method to check if a string is a valid SQL query.
+     */
+    private boolean isSqlQuery(String query) {
+        try {
+            Statement stmt = CCJSqlParserUtil.parse(query);
+            return stmt != null;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
 
     protected String execute(String sqlQuery, Statement statement) throws SQLException {
         List<String> resultRows = new ArrayList<>();

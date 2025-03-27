@@ -70,14 +70,14 @@ public class ModelFactory {
     }
 
     // Currently not yet supported by LangChain4J
-    private ChatLanguageModel createDeepseekModel() {
-        log.info("Initializing Deepseek Chat Model via LocalAI...");
-        return LocalAiChatModel.builder()
-                .apiKey(modelConfig.getDeepseekApiKey())
-                .modelName("deepseek-coder")
-                .timeout(Duration.ofMinutes(5))
-                .build();
-    }
+    // private ChatLanguageModel createDeepseekModel() {
+    //     log.info("Initializing Deepseek Chat Model via LocalAI...");
+    //     return LocalAiChatModel.builder()
+    //             .baseUrl(modelConfig.getDeepseekApiKey())
+    //             .modelName("deepseek-coder")
+    //             .timeout(Duration.ofMinutes(5))
+    //             .build();
+    // }
 
     private ChatLanguageModel createOllamaModel() {
         log.info("Initializing Ollama Chat Model...");
