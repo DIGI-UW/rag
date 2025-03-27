@@ -39,7 +39,7 @@ public class ModelFactory {
             return switch (modelName) {
                 case "GEMINI" -> createGeminiModel();
                 case "CLAUDE" -> createClaudeModel();
-                case "DEEPSEEK" -> createDeepseekModel();
+                // case "DEEPSEEK" -> createDeepseekModel();
                 case "OLLAMA" -> createOllamaModel();
                 case "LOCAL_AI" -> createLocalAiModel();
                 default -> createGeminiModel();

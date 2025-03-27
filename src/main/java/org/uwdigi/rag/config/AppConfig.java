@@ -3,6 +3,8 @@ package org.uwdigi.rag.config;
 import java.time.Duration;
 
 import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Qualifier;
+
 
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.hive.jdbc.HiveDataSource;
@@ -57,20 +59,23 @@ public class AppConfig {
 
     @Value("${app.chatWindow.memory}")
     private int maxWindowChatMemory;
-/*     @Bean
+    @Bean
     public DataSource dataSource() {
         MariaDbDataSource dataSource = new MariaDbDataSource();
         try {
             dataSource.setUrl(dbUrl);
             dataSource.setUser(dbUser);
             dataSource.setPassword(dbPassword);
+
+        log.info("Initializing Datasource at " + dbUrl + " " + dbUser + " "+dbPassword );
+
         } catch (Exception e) {
             throw new RuntimeException("Failed to configure datasource", e);
         }
         return dataSource;
-    } */
+    }
 
-    @Bean
+/*     @Bean
     public DataSource dataSource() {
         BasicDataSource dataSource = new BasicDataSource();
         try {
@@ -82,7 +87,7 @@ public class AppConfig {
             throw new RuntimeException("Failed to configure datasource", e);
         }
         return dataSource;
-    }
+    } */
 
     @Bean
     public ChatLanguageModel geminiChatModel() {
@@ -101,24 +106,43 @@ public class AppConfig {
         }
     }
 
-    @Bean
+    // @Bean
+    // public ChatLanguageModel ollamaChatModel() {
+    //     log.info("Initializing Ollama Chat Model...");
+    //     try {
+    //         ChatLanguageModel model = OllamaChatModel.builder()
+    //                 .baseUrl(ollamaBaseUrl)
+    //                 .modelName(ollamaModelName)
+    //                 .logRequests(true)
+    //                 .logResponses(true)
+    //                 .timeout(Duration.ofMinutes(5))
+    //                 .build();
+    //         log.info("Ollama Chat Model initialized successfully.");
+    //         return model;
+    //     } catch (Exception e) {
+    //         log.error("Failed to initialize Ollama Chat Model: {}", e.getMessage(), e);
+    //         throw new ModelInitializationException("Ollama Chat Model initialization failed", e);
+    //     }
+    // }
+    @Bean(name = "ollamaChatLanguageModel")
     public ChatLanguageModel ollamaChatModel() {
-        log.info("Initializing Ollama Chat Model...");
-        try {
-            ChatLanguageModel model = OllamaChatModel.builder()
-                    .baseUrl(ollamaBaseUrl)
-                    .modelName(ollamaModelName)
-                    .logRequests(true)
-                    .logResponses(true)
-                    .timeout(Duration.ofMinutes(5))
-                    .build();
-            log.info("Ollama Chat Model initialized successfully.");
-            return model;
-        } catch (Exception e) {
-            log.error("Failed to initialize Ollama Chat Model: {}", e.getMessage(), e);
-            throw new ModelInitializationException("Ollama Chat Model initialization failed", e);
-        }
+    log.info("Initializing Ollama Chat Model...");
+    try {
+        ChatLanguageModel model = OllamaChatModel.builder()
+                .baseUrl(ollamaBaseUrl)
+                .modelName(ollamaModelName)
+                .logRequests(true)
+                .logResponses(true)
+                .timeout(Duration.ofMinutes(5))
+                .build();
+        log.info("Ollama Chat Model initialized successfully.");
+        return model;
+    } catch (Exception e) {
+        log.error("Failed to initialize Ollama Chat Model: {}", e.getMessage(), e);
+        throw new ModelInitializationException("Ollama Chat Model initialization failed", e);
     }
+}
+
 
     @Bean
     public ChatLanguageModel localAiChatModel() {
@@ -141,11 +165,15 @@ public class AppConfig {
     }
 
     @Bean
-    public ContentRetriever sqlDatabaseContentRetriever(DataSource dataSource, ChatLanguageModel geminiChatModel) {
+    public ContentRetriever sqlDatabaseContentRetriever(DataSource dataSource, ChatLanguageModel geminiChatModel,
+            @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel) {
+
         return SqlDatabaseContentRetriever.builder()
                 .dataSource(dataSource)
                 .chatLanguageModel(geminiChatModel)
+                .ollamaChatModel(ollamaChatModel)
                 .build();
+                
     }
 
     @Bean

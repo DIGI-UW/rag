@@ -16,6 +16,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Qualifier;
+
 
 import javax.sql.DataSource;
 
@@ -97,6 +99,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
     private final PromptTemplate promptTemplate;
     private final ChatLanguageModel chatLanguageModel;
+    private final ChatLanguageModel ollamaChatModel;
 
     private final int maxRetries;
     // private final EmbeddingStore<TextSegment> embeddingStore;
@@ -155,12 +158,14 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
             String databaseStructure,
             PromptTemplate promptTemplate,
             ChatLanguageModel chatLanguageModel,
+            @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel,
             Integer maxRetries) {
         this.dataSource = ensureNotNull(dataSource, "dataSource");
         this.sqlDialect = getOrDefault(sqlDialect, () -> getSqlDialect(dataSource));
         this.databaseStructure = getOrDefault(databaseStructure, () -> generateDDL(dataSource));
         this.promptTemplate = getOrDefault(promptTemplate, DEFAULT_PROMPT_TEMPLATE);
         this.chatLanguageModel = ensureNotNull(chatLanguageModel, "chatLanguageModel");
+        this.ollamaChatModel = ensureNotNull(ollamaChatModel, "ollamaChatModel");
         this.maxRetries = getOrDefault(maxRetries, 1);
         /* saveTextToFile(this.databaseStructure);
 
@@ -323,6 +328,9 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
         int attemptsLeft = maxRetries + 1;
         while (attemptsLeft > 0) {
+                        System.out.println("yyyyyyyy");
+            System.out.println(attemptsLeft);
+
             attemptsLeft--;
 
             try {
@@ -332,9 +340,9 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
                 sqlQuery = clean(sqlQuery);
 
-                if (!isSelect(sqlQuery)) {
+/*                 if (!isSelect(sqlQuery)) {
                     throw new IllegalArgumentException("Generated SQL is not a SELECT statement.");
-                }
+                } */
 
                 validate(sqlQuery);
 
@@ -343,6 +351,18 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
                     String result = execute(sqlQuery, statement);
                     Content content = format(result, sqlQuery);
+System.out.println("content.textSegment().text()");
+System.out.println(content.textSegment().text());
+        List<ChatMessage> messages = new ArrayList<>();
+
+                    //messages.add(AiMessage.from(naturalLanguageQuery.text()));
+            messages.add(UserMessage.from(naturalLanguageQuery.text() + "\n\nAnswer using the following information:\n" + content.textSegment().text()));
+System.out.println("feedback");
+System.out.println(ollamaChatModel.chat(messages).aiMessage().text());
+
+
+            //return ollamaChatModel.chat(messages).aiMessage().text();
+
                     return singletonList(content);
                 }
             } catch (SQLException e) {
@@ -363,15 +383,27 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
     protected String generateSqlQuery(Query naturalLanguageQuery, String previousSqlQuery,
             String previousErrorMessage) {
+            System.out.println("tttttttttttttt");
+   
 
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(createSystemPrompt(naturalLanguageQuery).toSystemMessage());
         messages.add(UserMessage.from(naturalLanguageQuery.text()));
 
         if (previousSqlQuery != null && previousErrorMessage != null) {
+            System.out.println("vvvvvvvvvvvvvv");
             messages.add(AiMessage.from(previousSqlQuery));
             messages.add(UserMessage.from(previousErrorMessage));
         }
+
+        if (previousSqlQuery != null && previousErrorMessage == null) {
+            System.out.println("xxxxxxxxxxxx");
+            messages.add(AiMessage.from(previousSqlQuery));
+            messages.add(UserMessage.from(naturalLanguageQuery.text()));
+            return ollamaChatModel.chat(messages).aiMessage().text();
+
+        }
+
 
         return chatLanguageModel.chat(messages).aiMessage().text();
     }
@@ -421,23 +453,23 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
         }
     }
 
-    private boolean isValidSqlQuery(String sql) {
-    try {
-        Statement stmt = CCJSqlParserUtil.parse(sql);
+    // private boolean isValidSqlQuery(String sql) {
+    // try {
+    //     Statement stmt = CCJSqlParserUtil.parse(sql);
 
-        // Ensure the parsed query is a SELECT statement
-        //If DELETE, UPDATE, INSERT, etc., are used, it logs and rejects the query.
-        if (stmt instanceof Select) {
-            return true;
-        } else {
-            log.error("Rejected query: Non-SELECT statement detected -> {}", sql);
-            return false;
-        }
-    } catch (JSQLParserException e) {
-        log.error("Invalid SQL query: {}", sql, e);
-        return false;
-    }
-    }
+    //     // Ensure the parsed query is a SELECT statement
+    //     //If DELETE, UPDATE, INSERT, etc., are used, it logs and rejects the query.
+    //     if (stmt instanceof Select) {
+    //         return true;
+    //     } else {
+    //         log.error("Rejected query: Non-SELECT statement detected -> {}", sql);
+    //         return false;
+    //     }
+    // } catch (JSQLParserException e) {
+    //     log.error("Invalid SQL query: {}", sql, e);
+    //     return false;
+    // }
+    // }
      
 
 
@@ -468,14 +500,14 @@ private boolean hasSuspiciousPatterns(String sql) {
      /**
      * Helper method to check if a string is a valid SQL query.
      */
-    private boolean isSqlQuery(String query) {
-        try {
-            Statement stmt = CCJSqlParserUtil.parse(query);
-            return stmt != null;
-        } catch (Exception e) {
-            return false;
-        }
-    }
+    // private boolean isSqlQuery(String query) {
+    //     try {
+    //         Statement stmt = CCJSqlParserUtil.parse(query);
+    //         return stmt != null;
+    //     } catch (Exception e) {
+    //         return false;
+    //     }
+    // }
     
 
     protected String execute(String sqlQuery, Statement statement) throws SQLException {

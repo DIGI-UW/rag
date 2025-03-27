@@ -1,5 +1,7 @@
 package org.uwdigi.rag.service;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Qualifier;
+
 
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,14 +29,17 @@ public class AssistantService {
     private final Assistant assistant;
     private final DataSource dataSource;
     private final ModelFactory modelFactory;
+    private final  ChatLanguageModel ollamaChatModel;
+
 
 
     @Autowired
-    public AssistantService(Assistant assistant, DataSource dataSource, ModelFactory modelFactory
+    public AssistantService(Assistant assistant, DataSource dataSource, ModelFactory modelFactory, @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel
         ) {
         this.assistant = assistant;
         this.dataSource = dataSource;
         this.modelFactory = modelFactory;
+        this.ollamaChatModel = ollamaChatModel;
 
     }
 
@@ -54,6 +59,7 @@ public class AssistantService {
                 .dataSource(dataSource)
                 .sqlDialect("MySQL")
                 .chatLanguageModel(chatLanguageModel)
+                .ollamaChatModel(ollamaChatModel)
                 .build();
         log.debug("Processing query through AssistantService: {}", query);
         return AiServices.builder(Assistant.class)
