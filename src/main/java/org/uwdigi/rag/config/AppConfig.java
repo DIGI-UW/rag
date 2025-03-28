@@ -23,6 +23,7 @@ import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.model.localai.LocalAiChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.service.AiServices;
 import org.slf4j.Logger;
@@ -44,6 +45,10 @@ public class AppConfig {
 
     @Value("${app.gemini.api-key}")
     private String geminiApiKey;
+
+    @Value("${app.openai.api-key}")
+    private String openaiApiKey;
+
 
     @Value("${app.ollama.base-url}")
     private String ollamaBaseUrl;
@@ -103,6 +108,24 @@ public class AppConfig {
         } catch (Exception e) {
             log.error("Failed to initialize Gemini Chat Model: {}", e.getMessage(), e);
             throw new ModelInitializationException("Gemini Chat Model initialization failed", e);
+        }
+    }
+
+
+      @Bean
+    public ChatLanguageModel openAiChatModel() {
+        log.info("Initializing OpenAI Chat Model...");
+        try {
+            ChatLanguageModel model = OpenAiChatModel.builder()
+                    .apiKey(openaiApiKey)
+                    .modelName("GPT_4_O_MINI")
+                    // .logRequestsAndResponses(true)
+                    .build();
+            log.info("OpenAI Chat Model initialized successfully.");
+            return model;
+        } catch (Exception e) {
+            log.error("Failed to initialize ApoenAI Chat Model: {}", e.getMessage(), e);
+            throw new ModelInitializationException("OpenAI Chat Model initialization failed", e);
         }
     }
 

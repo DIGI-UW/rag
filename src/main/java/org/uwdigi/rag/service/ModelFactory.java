@@ -11,8 +11,10 @@ import dev.langchain4j.model.anthropic.AnthropicChatModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.model.localai.LocalAiChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O_MINI;
 
 /**
  * Factory service for creating LLM instances based on the currently active
@@ -39,7 +41,7 @@ public class ModelFactory {
             return switch (modelName) {
                 case "GEMINI" -> createGeminiModel();
                 case "CLAUDE" -> createClaudeModel();
-                // case "DEEPSEEK" -> createDeepseekModel();
+                case "OPENAI" -> createOpenAiChatModel();
                 case "OLLAMA" -> createOllamaModel();
                 case "LOCAL_AI" -> createLocalAiModel();
                 default -> createGeminiModel();
@@ -65,6 +67,15 @@ public class ModelFactory {
         return AnthropicChatModel.builder()
                 .apiKey(modelConfig.getClaudeApiKey())
                 .modelName("claude-3-haiku-20240307")
+                .timeout(Duration.ofMinutes(2))
+                .build();
+    }
+
+     private ChatLanguageModel createOpenAiChatModel() {
+        log.info("Initializing OpenAI Chat Model...");
+        return OpenAiChatModel.builder()
+                .apiKey(modelConfig.getOpenaiApiKey())
+                .modelName("GPT_4_O_MINI")
                 .timeout(Duration.ofMinutes(2))
                 .build();
     }

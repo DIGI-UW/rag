@@ -22,6 +22,9 @@ public class ModelConfig {
 
     @Value("${app.claude.api-key:}")
     private String claudeApiKey;
+    
+    @Value("${app.openai.api-key:}")
+    private String openaiApiKey;
 
     @Value("${app.deepseek.api-key:}")
     private String deepseekApiKey;
@@ -51,6 +54,11 @@ public class ModelConfig {
         return claudeApiKey;
     }
 
+    public String getOpenaiApiKey() {
+        return openaiApiKey;
+    }
+
+
     public String getDeepseekApiKey() {
         return deepseekApiKey;
     }
@@ -79,6 +87,10 @@ public class ModelConfig {
 
     public void setGeminiApiKey(String geminiApiKey) {
         this.geminiApiKey = geminiApiKey;
+    }
+
+     public void setOpenaiApiKey(String openaiApiKey) {
+        this.openaiApiKey = openaiApiKey;
     }
 
     public void setClaudeApiKey(String claudeApiKey) {
