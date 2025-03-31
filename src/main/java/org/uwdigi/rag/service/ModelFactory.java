@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O_MINI;
 
 /**
- * Factory service for creating LLM instances based on the currently active
+ * Factory service class for running the appropriate function based on the currently active
  * model type.
  */
 @Service
@@ -76,6 +76,8 @@ public class ModelFactory {
         return OpenAiChatModel.builder()
                 .apiKey(modelConfig.getOpenaiApiKey())
                 .modelName("GPT_4_O_MINI")
+                .logRequests(true)
+                .logResponses(true)
                 .timeout(Duration.ofMinutes(2))
                 .build();
     }

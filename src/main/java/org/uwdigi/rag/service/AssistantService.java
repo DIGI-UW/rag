@@ -62,11 +62,12 @@ public class AssistantService {
                 .ollamaChatModel(ollamaChatModel)
                 .build();
         log.debug("Processing query through AssistantService: {}", query);
-        return AiServices.builder(Assistant.class)
+                 String answer = AiServices.builder(Assistant.class)
                 .chatLanguageModel(chatLanguageModel)
                 .contentRetriever(contentRetriever)
                 .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
                 .build().answer(query);
+                return answer;
     }
 
 

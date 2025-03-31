@@ -112,41 +112,25 @@ public class AppConfig {
     }
 
 
-      @Bean
+    @Bean(name = "openaiChatLanguageModel")
     public ChatLanguageModel openAiChatModel() {
         log.info("Initializing OpenAI Chat Model...");
         try {
             ChatLanguageModel model = OpenAiChatModel.builder()
                     .apiKey(openaiApiKey)
                     .modelName("GPT_4_O_MINI")
-                    // .logRequestsAndResponses(true)
+                    .logRequests(true)
+                    .logResponses(true)
                     .build();
             log.info("OpenAI Chat Model initialized successfully.");
             return model;
         } catch (Exception e) {
-            log.error("Failed to initialize ApoenAI Chat Model: {}", e.getMessage(), e);
+            log.error("Failed to initialize OpenAI Chat Model: {}", e.getMessage(), e);
             throw new ModelInitializationException("OpenAI Chat Model initialization failed", e);
         }
     }
 
-    // @Bean
-    // public ChatLanguageModel ollamaChatModel() {
-    //     log.info("Initializing Ollama Chat Model...");
-    //     try {
-    //         ChatLanguageModel model = OllamaChatModel.builder()
-    //                 .baseUrl(ollamaBaseUrl)
-    //                 .modelName(ollamaModelName)
-    //                 .logRequests(true)
-    //                 .logResponses(true)
-    //                 .timeout(Duration.ofMinutes(5))
-    //                 .build();
-    //         log.info("Ollama Chat Model initialized successfully.");
-    //         return model;
-    //     } catch (Exception e) {
-    //         log.error("Failed to initialize Ollama Chat Model: {}", e.getMessage(), e);
-    //         throw new ModelInitializationException("Ollama Chat Model initialization failed", e);
-    //     }
-    // }
+   
     @Bean(name = "ollamaChatLanguageModel")
     public ChatLanguageModel ollamaChatModel() {
     log.info("Initializing Ollama Chat Model...");
@@ -189,11 +173,11 @@ public class AppConfig {
 
     @Bean
     public ContentRetriever sqlDatabaseContentRetriever(DataSource dataSource, ChatLanguageModel geminiChatModel,
-            @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel) {
+            @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel, @Qualifier("openaiChatLanguageModel") ChatLanguageModel openaiChatModel) {
 
         return SqlDatabaseContentRetriever.builder()
                 .dataSource(dataSource)
-                .chatLanguageModel(geminiChatModel)
+                .chatLanguageModel(openaiChatModel)
                 .ollamaChatModel(ollamaChatModel)
                 .build();
                 
