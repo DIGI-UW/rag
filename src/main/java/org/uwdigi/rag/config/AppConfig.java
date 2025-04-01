@@ -10,7 +10,7 @@ import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.service.AiServices;
 import java.time.Duration;
 import javax.sql.DataSource;
-import org.mariadb.jdbc.MariaDbDataSource;
+import org.apache.commons.dbcp.BasicDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -57,7 +57,7 @@ public class AppConfig {
   @Value("${app.chatWindow.memory}")
   private int maxWindowChatMemory;
 
-  @Bean
+  /*   @Bean
   public DataSource dataSource() {
     MariaDbDataSource dataSource = new MariaDbDataSource();
     try {
@@ -71,9 +71,8 @@ public class AppConfig {
       throw new RuntimeException("Failed to configure datasource", e);
     }
     return dataSource;
-  }
-
-  /*   @Bean
+  } */
+  @Bean
   public DataSource dataSource() {
     BasicDataSource dataSource = new BasicDataSource();
     try {
@@ -85,7 +84,7 @@ public class AppConfig {
       throw new RuntimeException("Failed to configure datasource", e);
     }
     return dataSource;
-  } */
+  }
 
   @Bean
   public ChatLanguageModel geminiChatModel() {
