@@ -62,12 +62,32 @@
         .input-container button:hover {
             background-color: #45a049;
         }
+        .dropdown-container {
+            margin-bottom: 20px;
+        }
+        .dropdown-container select {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     <h1>RAG SQL Assistant</h1>
     <p>Ask questions about your database</p>
     
+    <!-- Dropdown for selecting AI model -->
+    <div class="dropdown-container">
+        <label for="aiModels">Select AI Model:</label>
+        <select id="aiModels">
+            <option value="GEMINI">GEMINI</option>
+            <option value="OPENAI">OPENAI</option>
+            <!-- <option value="OLLAMA">Llama3 (Local)</option>
+            <option value="CLAUDE">CLAUDE</option> -->
+            <option value="DEEPSEEK">DEEPSEEK</option>
+        </select>
+    </div>
+
     <div class="chat-container">
         <div class="chat-history" id="chatHistory"></div>
         <div class="input-container">
@@ -81,6 +101,7 @@
             const chatHistory = document.getElementById('chatHistory');
             const queryInput = document.getElementById('queryInput');
             const sendButton = document.getElementById('sendButton');
+            const aiModelsSelect = document.getElementById('aiModels');
             
             function addMessage(text, isUser) {
                 const messageDiv = document.createElement('div');
@@ -92,6 +113,7 @@
             
             async function sendQuery() {
                 const query = queryInput.value.trim();
+                const model = aiModelsSelect.value; // Get the selected model
                 if (!query) return;
                 
                 // Add user message to chat
@@ -99,13 +121,13 @@
                 queryInput.value = '';
                 
                 try {
-                    // Send query to backend
+                    // Send query to backend with model as parameter
                     const response = await fetch('/api/chat', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ query })
+                        body: JSON.stringify({ query, model }) // Add model to the request body
                     });
                     
                     if (!response.ok) {

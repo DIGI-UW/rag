@@ -30,16 +30,14 @@ services:
 #    ports:
 #      - "3307:3306"
 
-  # Ollama service
-  # ollama:
-  #   image : itechuw/ollama:latest
-  #   container_name : ollama_app
-  #   ports:
-  #     - "11434:11434"
-  #   volumes:
-  #     - ollama_data:/root/.ollama
+  ollama:
+    image: itechuw/ollama:latest
+    container_name: ollama_app
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
 
-
-#volumes:
+volumes:
   #mariadb_data:
-  # ollama_data:
+  ollama_data:
