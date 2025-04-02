@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.uwdigi.rag.shared.Assistant;
+import org.uwdigi.rag.shared.QueryResponse;
 
 /**
  * Service for handling user queries using AI assistants. This service integrates both the standard
@@ -25,6 +26,7 @@ public class AssistantService {
   private final ModelFactory modelFactory;
   private final ChatLanguageModel ollamaChatModel;
   private String response;
+  private String sqlRun;
 
   @Autowired
   public AssistantService(
@@ -37,6 +39,16 @@ public class AssistantService {
     this.modelFactory = modelFactory;
     this.ollamaChatModel = ollamaChatModel;
     this.response = "Unexpected Error occured";
+    this.sqlRun = "Unexpected Error occured";
+  }
+
+  public void updateSqlRun(String sqlRun) {
+    log.debug("Updating SQL Query run on DB: {}", sqlRun);
+    this.sqlRun = sqlRun;
+  }
+
+  public String getSqlRun() {
+    return this.sqlRun;
   }
 
   public void updateResponse(String response) {
@@ -55,7 +67,7 @@ public class AssistantService {
    * @param query The user query
    * @return The response
    */
-  public String processQuery(String query, String modelName) {
+  public QueryResponse processQuery(String query, String modelName) {
     log.debug("Processing with model: {}", modelName);
 
     ChatLanguageModel chatLanguageModel = this.modelFactory.createModel(modelName);
@@ -78,7 +90,8 @@ public class AssistantService {
             .answer(query);
     log.debug("The Cloud AI answer is : {}", answer);
     log.debug("The Local AI answer is : {}", this.response);
+    log.debug("The SQL query run is : {}", this.sqlRun);
 
-    return this.response;
+    return new QueryResponse(this.response, this.sqlRun);
   }
 }

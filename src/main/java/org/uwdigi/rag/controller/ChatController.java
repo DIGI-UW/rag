@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.uwdigi.rag.service.AssistantService;
+import org.uwdigi.rag.shared.QueryResponse;
 
 @RestController
 @RequestMapping("/api/chat")
@@ -21,8 +22,10 @@ public class ChatController {
 
   @PostMapping
   public ResponseEntity<ChatResponse> chat(@RequestBody ChatRequest request) {
-    String response = assistantService.processQuery(request.getQuery(), request.getModel());
-    return ResponseEntity.ok(new ChatResponse(response));
+    QueryResponse queryResponse =
+        assistantService.processQuery(request.getQuery(), request.getModel());
+    return ResponseEntity.ok(
+        new ChatResponse(queryResponse.getResponse(), queryResponse.getSqlRun()));
   }
 
   public static class ChatRequest {
@@ -55,11 +58,13 @@ public class ChatController {
 
   public static class ChatResponse {
     private String response;
+    private String logs;
 
     public ChatResponse() {}
 
-    public ChatResponse(String response) {
+    public ChatResponse(String response, String logs) {
       this.response = response;
+      this.logs = logs;
     }
 
     public String getResponse() {
@@ -68,6 +73,14 @@ public class ChatController {
 
     public void setResponse(String response) {
       this.response = response;
+    }
+
+    public String getLogs() {
+      return logs;
+    }
+
+    public void setLogs(String logs) {
+      this.logs = logs;
     }
   }
 }
