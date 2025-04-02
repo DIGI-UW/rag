@@ -23,6 +23,14 @@
             padding: 15px;
             background-color: #f9f9f9;
         }
+        .logs-box {
+            height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+        }
         .user-message, .assistant-message {
             margin-bottom: 15px;
             padding: 10px;
@@ -70,6 +78,12 @@
             font-size: 16px;
             border-radius: 4px;
         }
+        .log-divider {
+            border: 0;
+            height: 1px;
+            background-color: #ccc;
+            margin: 8px 0;
+        }
     </style>
 </head>
 <body>
@@ -82,8 +96,6 @@
         <select id="aiModels">
             <option value="GEMINI">GEMINI</option>
             <option value="OPENAI">OPENAI</option>
-            <!-- <option value="OLLAMA">Llama3 (Local)</option>
-            <option value="CLAUDE">CLAUDE</option> -->
             <option value="DEEPSEEK">DEEPSEEK</option>
         </select>
     </div>
@@ -95,6 +107,11 @@
             <button id="sendButton">Send</button>
         </div>
     </div>
+
+    <div class="logs-box" id="logsBox">
+        <h3>Logs</h3>
+        <div id="logsContent"></div>
+    </div>
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -102,7 +119,8 @@
             const queryInput = document.getElementById('queryInput');
             const sendButton = document.getElementById('sendButton');
             const aiModelsSelect = document.getElementById('aiModels');
-            
+            const logsContent = document.getElementById('logsContent');
+
             function addMessage(text, isUser) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = isUser ? 'user-message' : 'assistant-message';
@@ -110,7 +128,22 @@
                 chatHistory.appendChild(messageDiv);
                 chatHistory.scrollTop = chatHistory.scrollHeight;
             }
-            
+
+            function addLog(log) {
+                const divider = document.createElement('hr');
+                divider.className = 'log-divider';
+                
+                // Create the log entry div
+                const logDiv = document.createElement('div');
+                logDiv.className = 'log-entry';
+                logDiv.textContent = log;
+                
+                logsContent.appendChild(divider);
+                logsContent.appendChild(logDiv);
+                
+                logsContent.scrollTop = logsContent.scrollHeight;
+            }
+
             async function sendQuery() {
                 const query = queryInput.value.trim();
                 const model = aiModelsSelect.value; // Get the selected model
@@ -119,35 +152,34 @@
                 // Add user message to chat
                 addMessage(query, true);
                 queryInput.value = '';
-                
+
                 try {
-                    // Send query to backend with model as parameter
                     const response = await fetch('/api/chat', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ query, model }) // Add model to the request body
+                        body: JSON.stringify({ query, model })
                     });
-                    
+
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
                     }
-                    
+
                     const data = await response.json();
-                    
-                    // Add assistant response to chat
+
                     addMessage(data.response, false);
+
+                    if (data.logs) {
+                        addLog(data.logs);
+                    }
+
                 } catch (error) {
                     console.error('Error:', error);
                     addMessage('Sorry, there was an error processing your request.', false);
                 }
             }
-            
-            // Send message on button click
             sendButton.addEventListener('click', sendQuery);
-            
-            // Send message on Enter key
             queryInput.addEventListener('keydown', function(event) {
                 if (event.key === 'Enter') {
                     sendQuery();

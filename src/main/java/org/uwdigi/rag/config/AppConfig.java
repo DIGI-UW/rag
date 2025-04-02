@@ -9,6 +9,8 @@ import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.service.AiServices;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import javax.sql.DataSource;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.slf4j.Logger;
@@ -56,6 +58,12 @@ public class AppConfig {
 
   @Value("${app.chatWindow.memory}")
   private int maxWindowChatMemory;
+
+  private final FhirDbConfig fhirDbConfig;
+
+  public AppConfig(FhirDbConfig fhirDbConfig) {
+    this.fhirDbConfig = fhirDbConfig;
+  }
 
   /*   @Bean
   public DataSource dataSource() {
@@ -170,11 +178,12 @@ public class AppConfig {
       ChatLanguageModel geminiChatModel,
       @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel,
       @Qualifier("openaiChatLanguageModel") ChatLanguageModel openaiChatModel) {
-
+    Map<String, String> tables = fhirDbConfig != null ? fhirDbConfig.getTables() : new HashMap<>();
     return SqlDatabaseContentRetriever.builder()
         .dataSource(dataSource)
         .chatLanguageModel(openaiChatModel)
         .ollamaChatModel(ollamaChatModel)
+        .tables(tables)
         .build();
   }
 
