@@ -724,8 +724,4 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
       System.out.println("Error saving text to file: " + e.getMessage());
     }
   }
-
-  public static PromptTemplate getDefaultPromptTemplate() {
-    return DEFAULT_PROMPT_TEMPLATE;
-  }
 }
