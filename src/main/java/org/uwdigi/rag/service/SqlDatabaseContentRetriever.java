@@ -50,6 +50,7 @@ import lombok.Builder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.uwdigi.rag.config.FhirDbConfig;
 
 /**
@@ -101,6 +102,9 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
   private final DataSource dataSource;
   private final String sqlDialect;
   private final String databaseStructure;
+
+  @Value("${useCloudLLMOnly:false}")
+  private boolean useCloudLLMOnly;
 
   private final PromptTemplate promptTemplate;
   private ChatLanguageModel chatLanguageModel;
@@ -446,7 +450,19 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                       + "\n\nAnswer using the following information:\n"
                       + content.textSegment().text()));
 
-          AiMessage aiMessage = chatLanguageModel.chat(messages).aiMessage();
+          AiMessage aiMessage;
+          if (useCloudLLMOnly) {
+            // Use only the cloud-based model
+            aiMessage = chatLanguageModel.chat(messages).aiMessage();
+          } else {
+            // Use Ollama as a fallback
+            try {
+              aiMessage = chatLanguageModel.chat(messages).aiMessage();
+            } catch (Exception e) {
+              log.warn("Primary model failed, using Ollama fallback: {}", e.getMessage());
+              aiMessage = ollamaChatModel.chat(messages).aiMessage();
+            }
+          }
 
           log.debug("Local AI response: {}", aiMessage.text());
 
