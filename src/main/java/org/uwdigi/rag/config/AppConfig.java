@@ -3,6 +3,7 @@ package org.uwdigi.rag.config;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
+import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.model.localai.LocalAiChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
@@ -175,14 +176,20 @@ public class AppConfig {
   @Bean
   public ContentRetriever sqlDatabaseContentRetriever(
       DataSource dataSource,
+      @Value("${SQL_PROMPT_TEMPLATE:}") String envPrompt,
       ChatLanguageModel geminiChatModel,
       @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel,
       @Qualifier("openaiChatLanguageModel") ChatLanguageModel openaiChatModel) {
+    PromptTemplate promptTemplate =
+        envPrompt.isEmpty()
+            ? SqlDatabaseContentRetriever.getDefaultPromptTemplate()
+            : new PromptTemplate(envPrompt);
     Map<String, String> tables = fhirDbConfig != null ? fhirDbConfig.getTables() : new HashMap<>();
     return SqlDatabaseContentRetriever.builder()
         .dataSource(dataSource)
         .chatLanguageModel(openaiChatModel)
         .ollamaChatModel(ollamaChatModel)
+        .promptTemplate(promptTemplate)
         .tables(tables)
         .build();
   }

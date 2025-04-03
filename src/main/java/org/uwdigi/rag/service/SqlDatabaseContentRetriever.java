@@ -446,7 +446,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                       + "\n\nAnswer using the following information:\n"
                       + content.textSegment().text()));
 
-          AiMessage aiMessage = ollamaChatModel.chat(messages).aiMessage();
+          AiMessage aiMessage = chatLanguageModel.chat(messages).aiMessage();
 
           log.debug("Local AI response: {}", aiMessage.text());
 
@@ -703,5 +703,9 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     } catch (IOException e) {
       System.out.println("Error saving text to file: " + e.getMessage());
     }
+  }
+
+  public static PromptTemplate getDefaultPromptTemplate() {
+    return DEFAULT_PROMPT_TEMPLATE;
   }
 }
