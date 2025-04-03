@@ -175,14 +175,18 @@ public class AppConfig {
   @Bean
   public ContentRetriever sqlDatabaseContentRetriever(
       DataSource dataSource,
+      @Value("${useCloudLLMOnly:false}") boolean useCloudLLMOnly,
+      @Value("${SQL_PROMPT_TEMPLATE:}") String envPrompt,
       ChatLanguageModel geminiChatModel,
       @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel,
       @Qualifier("openaiChatLanguageModel") ChatLanguageModel openaiChatModel) {
     Map<String, String> tables = fhirDbConfig != null ? fhirDbConfig.getTables() : new HashMap<>();
     return SqlDatabaseContentRetriever.builder()
         .dataSource(dataSource)
+        .useCloudLLMOnly(useCloudLLMOnly)
         .chatLanguageModel(openaiChatModel)
         .ollamaChatModel(ollamaChatModel)
+        .envPrompt(envPrompt)
         .tables(tables)
         .build();
   }

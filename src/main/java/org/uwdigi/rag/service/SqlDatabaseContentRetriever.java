@@ -102,7 +102,9 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
   private final String sqlDialect;
   private final String databaseStructure;
 
-  private final PromptTemplate promptTemplate;
+  private boolean useCloudLLMOnly;
+
+  private PromptTemplate promptTemplate;
   private ChatLanguageModel chatLanguageModel;
   private final ChatLanguageModel ollamaChatModel;
   private final AssistantService assistantService;
@@ -147,21 +149,24 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
       DataSource dataSource,
       String sqlDialect,
       String databaseStructure,
+      String envPrompt,
       PromptTemplate promptTemplate,
       ChatLanguageModel chatLanguageModel,
       @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel,
       AssistantService assistantService,
       FhirDbConfig fhirDbConfig,
       Map<String, String> tables,
+      boolean useCloudLLMOnly,
       Integer maxRetries) {
     this.dataSource = ensureNotNull(dataSource, "dataSource");
     this.sqlDialect = getOrDefault(sqlDialect, () -> getSqlDialect(dataSource));
     this.databaseStructure = getOrDefault(databaseStructure, () -> generateDDL(dataSource));
-    this.promptTemplate = getOrDefault(promptTemplate, DEFAULT_PROMPT_TEMPLATE);
     this.chatLanguageModel = ensureNotNull(chatLanguageModel, "chatLanguageModel");
     this.ollamaChatModel = ensureNotNull(ollamaChatModel, "ollamaChatModel");
     this.maxRetries = getOrDefault(maxRetries, 1);
+    this.promptTemplate = determinePromptTemplate(envPrompt, promptTemplate);
     this.assistantService = assistantService;
+    this.useCloudLLMOnly = useCloudLLMOnly;
 
     this.tables = tables != null ? tables : new HashMap<>();
 
@@ -205,6 +210,14 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
     embeddingStore = new InMemoryEmbeddingStore<>();
     embeddingStore.addAll(embeddings, segments);
+  }
+
+  private PromptTemplate determinePromptTemplate(
+      String envPrompt, PromptTemplate providedPromptTemplate) {
+    if (providedPromptTemplate != null) {
+      return providedPromptTemplate;
+    }
+    return envPrompt.isEmpty() ? DEFAULT_PROMPT_TEMPLATE : PromptTemplate.from(envPrompt);
   }
 
   public List<TextSegment> split(Document document) {
@@ -446,7 +459,14 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                       + "\n\nAnswer using the following information:\n"
                       + content.textSegment().text()));
 
-          AiMessage aiMessage = ollamaChatModel.chat(messages).aiMessage();
+          AiMessage aiMessage;
+          if (useCloudLLMOnly) {
+            // Use only the cloud-based model
+            aiMessage = chatLanguageModel.chat(messages).aiMessage();
+          } else {
+            // Use the local LLM (Ollama)
+            aiMessage = ollamaChatModel.chat(messages).aiMessage();
+          }
 
           log.debug("Local AI response: {}", aiMessage.text());
 
