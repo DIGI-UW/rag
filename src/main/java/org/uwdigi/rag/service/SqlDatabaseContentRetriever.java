@@ -50,7 +50,6 @@ import lombok.Builder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.uwdigi.rag.config.FhirDbConfig;
 
 /**
@@ -103,10 +102,9 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
   private final String sqlDialect;
   private final String databaseStructure;
 
-  @Value("${useCloudLLMOnly:false}")
   private boolean useCloudLLMOnly;
 
-  private final PromptTemplate promptTemplate;
+  private PromptTemplate promptTemplate;
   private ChatLanguageModel chatLanguageModel;
   private final ChatLanguageModel ollamaChatModel;
   private final AssistantService assistantService;
@@ -151,21 +149,24 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
       DataSource dataSource,
       String sqlDialect,
       String databaseStructure,
+      String envPrompt,
       PromptTemplate promptTemplate,
       ChatLanguageModel chatLanguageModel,
       @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel,
       AssistantService assistantService,
       FhirDbConfig fhirDbConfig,
       Map<String, String> tables,
+      boolean useCloudLLMOnly,
       Integer maxRetries) {
     this.dataSource = ensureNotNull(dataSource, "dataSource");
     this.sqlDialect = getOrDefault(sqlDialect, () -> getSqlDialect(dataSource));
     this.databaseStructure = getOrDefault(databaseStructure, () -> generateDDL(dataSource));
-    this.promptTemplate = getOrDefault(promptTemplate, DEFAULT_PROMPT_TEMPLATE);
     this.chatLanguageModel = ensureNotNull(chatLanguageModel, "chatLanguageModel");
     this.ollamaChatModel = ensureNotNull(ollamaChatModel, "ollamaChatModel");
     this.maxRetries = getOrDefault(maxRetries, 1);
+    this.promptTemplate = determinePromptTemplate(envPrompt, promptTemplate);
     this.assistantService = assistantService;
+    this.useCloudLLMOnly = useCloudLLMOnly;
 
     this.tables = tables != null ? tables : new HashMap<>();
 
@@ -209,6 +210,14 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
     embeddingStore = new InMemoryEmbeddingStore<>();
     embeddingStore.addAll(embeddings, segments);
+  }
+
+  private PromptTemplate determinePromptTemplate(
+      String envPrompt, PromptTemplate providedPromptTemplate) {
+    if (providedPromptTemplate != null) {
+      return providedPromptTemplate;
+    }
+    return envPrompt.isEmpty() ? DEFAULT_PROMPT_TEMPLATE : PromptTemplate.from(envPrompt);
   }
 
   public List<TextSegment> split(Document document) {
