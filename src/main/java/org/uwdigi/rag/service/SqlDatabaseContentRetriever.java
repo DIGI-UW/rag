@@ -455,13 +455,8 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
             // Use only the cloud-based model
             aiMessage = chatLanguageModel.chat(messages).aiMessage();
           } else {
-            // Use Ollama as a fallback
-            try {
-              aiMessage = chatLanguageModel.chat(messages).aiMessage();
-            } catch (Exception e) {
-              log.warn("Primary model failed, using Ollama fallback: {}", e.getMessage());
-              aiMessage = ollamaChatModel.chat(messages).aiMessage();
-            }
+            // Use the local LLM (Ollama)
+            aiMessage = ollamaChatModel.chat(messages).aiMessage();
           }
 
           log.debug("Local AI response: {}", aiMessage.text());
