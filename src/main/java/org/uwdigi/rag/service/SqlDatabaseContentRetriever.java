@@ -1,17 +1,13 @@
 package org.uwdigi.rag.service;
 
-import static dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocument;
 import static dev.langchain4j.internal.Utils.getOrDefault;
 import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static org.uwdigi.rag.shared.Utils.toPath;
 
 import dev.langchain4j.Experimental;
 import dev.langchain4j.data.document.Document;
-import dev.langchain4j.data.document.DocumentParser;
 import dev.langchain4j.data.document.Metadata;
-import dev.langchain4j.data.document.parser.TextDocumentParser;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
@@ -30,10 +26,6 @@ import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.rag.query.Query;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -153,6 +145,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
       AssistantService assistantService,
       FhirDbConfig fhirDbConfig,
       Map<String, String> tables,
+      boolean setUp,
       Integer maxRetries) {
     this.dataSource = ensureNotNull(dataSource, "dataSource");
     this.sqlDialect = getOrDefault(sqlDialect, () -> getSqlDialect(dataSource));
@@ -162,49 +155,55 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     this.ollamaChatModel = ensureNotNull(ollamaChatModel, "ollamaChatModel");
     this.maxRetries = getOrDefault(maxRetries, 1);
     this.assistantService = assistantService;
-
     this.tables = tables != null ? tables : new HashMap<>();
 
-    List<Object[]> obs = new ArrayList<>();
-    for (Map.Entry<String, String> entry : this.tables.entrySet()) {
-      String tableName = entry.getKey();
-      String[] columns = entry.getValue().split(",");
+    if (setUp) {
+      List<Object[]> obs = new ArrayList<>();
+      for (Map.Entry<String, String> entry : this.tables.entrySet()) {
+        String tableName = entry.getKey();
+        String[] columns = entry.getValue().split(",");
 
-      List<Object[]> tableResults = selectColumnsFromTable(tableName, columns, dataSource);
-      if (tableResults != null) {
-        obs.addAll(tableResults);
-      }
-    }
-
-    StringBuilder output = new StringBuilder();
-
-    for (Object[] row : obs) {
-      for (Object value : row) {
-        if (value != null) {
-          output.append(value).append("\n");
-          log.debug("Metadata for embedding: {}", value);
+        List<Object[]> tableResults = selectColumnsFromTable(tableName, columns, dataSource);
+        if (tableResults != null) {
+          obs.addAll(tableResults);
         }
       }
+
+      StringBuilder output = new StringBuilder();
+
+      for (Object[] row : obs) {
+        for (Object value : row) {
+          if (value != null) {
+            output.append(value).append("\n");
+            log.debug("Metadata for embedding: {}", value);
+          }
+        }
+      }
+
+      if (output != null && !output.toString().isBlank()) {
+        Document document = Document.document(output.toString());
+
+        List<TextSegment> segments = split(document);
+
+        /*embeddingModel = OllamaEmbeddingModel.builder()
+        .baseUrl(BASE_URL)
+        .modelName(MODEL_NAME)
+        .build();  */
+
+        embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
+        List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
+
+        embeddingStore = new InMemoryEmbeddingStore<>();
+        embeddingStore.addAll(embeddings, segments);
+      } else {
+        embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
+        embeddingStore = new InMemoryEmbeddingStore<>();
+      }
+
+    } else {
+      embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
+      embeddingStore = new InMemoryEmbeddingStore<>();
     }
-
-    saveTextToFile(output.toString());
-
-    DocumentParser documentParser = new TextDocumentParser();
-    String path = "documents/output.txt";
-    Document document = loadDocument(toPath(path), documentParser);
-
-    List<TextSegment> segments = split(document);
-
-    /*embeddingModel = OllamaEmbeddingModel.builder()
-    .baseUrl(BASE_URL)
-    .modelName(MODEL_NAME)
-    .build();  */
-
-    embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
-    List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
-
-    embeddingStore = new InMemoryEmbeddingStore<>();
-    embeddingStore.addAll(embeddings, segments);
   }
 
   public List<TextSegment> split(Document document) {
@@ -213,9 +212,10 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     List<TextSegment> segments = new ArrayList<>();
 
     String[] parts = document.text().split("\n");
-
     for (int i = 0; i < parts.length; i++) {
-      segments.add(createSegment(parts[i], document, i));
+      if (parts[i] != null && !parts[i].isEmpty()) {
+        segments.add(createSegment(parts[i], document, i));
+      }
     }
     return segments;
   }
@@ -683,25 +683,5 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
   private static Content format(String result, String sqlQuery) {
     return Content.from(String.format("Result of executing '%s':\n%s", sqlQuery, result));
-  }
-
-  public static void saveTextToFile(String text) {
-    String path = "src/main/resources/documents/output.txt";
-
-    File file = new File(path);
-
-    try {
-      File directory = new File(file.getParent());
-      if (!directory.exists()) {
-        directory.mkdirs();
-      }
-
-      BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-      writer.write(text);
-      writer.close();
-      System.out.println("Text successfully saved to " + file.getAbsolutePath());
-    } catch (IOException e) {
-      System.out.println("Error saving text to file: " + e.getMessage());
-    }
   }
 }

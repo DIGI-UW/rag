@@ -78,6 +78,7 @@ public class AssistantService {
             .sqlDialect("MySQL")
             .chatLanguageModel(chatLanguageModel)
             .ollamaChatModel(ollamaChatModel)
+            .setUp(false)
             .assistantService(this)
             .build();
     log.debug("Processing query through AssistantService: {}", query);
