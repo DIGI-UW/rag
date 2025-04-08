@@ -212,7 +212,6 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     List<TextSegment> segments = new ArrayList<>();
 
     String[] parts = document.text().split("\n");
-    System.out.println("Am starting off");
     for (int i = 0; i < parts.length; i++) {
       if (parts[i] != null && !parts[i].isEmpty()) {
         segments.add(createSegment(parts[i], document, i));
