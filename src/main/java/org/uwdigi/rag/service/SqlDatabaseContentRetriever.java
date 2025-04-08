@@ -102,7 +102,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
   private final String sqlDialect;
   private final String databaseStructure;
 
-  private boolean useCloudLLMOnly;
+  private final boolean useCloudLLMOnly;
 
   private PromptTemplate promptTemplate;
   private ChatLanguageModel chatLanguageModel;
@@ -149,7 +149,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
       DataSource dataSource,
       String sqlDialect,
       String databaseStructure,
-      String envPrompt,
+      String sqlPromptTemplate,
       PromptTemplate promptTemplate,
       ChatLanguageModel chatLanguageModel,
       @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel,
@@ -164,10 +164,15 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     this.chatLanguageModel = ensureNotNull(chatLanguageModel, "chatLanguageModel");
     this.ollamaChatModel = ensureNotNull(ollamaChatModel, "ollamaChatModel");
     this.maxRetries = getOrDefault(maxRetries, 1);
-    this.promptTemplate = determinePromptTemplate(envPrompt, promptTemplate);
+    if (sqlPromptTemplate == null
+        || sqlPromptTemplate.isEmpty()
+        || sqlPromptTemplate.equals("\"\"")) {
+      this.promptTemplate = getOrDefault(promptTemplate, DEFAULT_PROMPT_TEMPLATE);
+    } else {
+      this.promptTemplate = PromptTemplate.from(sqlPromptTemplate);
+    }
     this.assistantService = assistantService;
-    this.useCloudLLMOnly = useCloudLLMOnly;
-
+    this.useCloudLLMOnly = ensureNotNull(useCloudLLMOnly, "useCloudLLMOnly");
     this.tables = tables != null ? tables : new HashMap<>();
 
     List<Object[]> obs = new ArrayList<>();
@@ -210,14 +215,6 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
     embeddingStore = new InMemoryEmbeddingStore<>();
     embeddingStore.addAll(embeddings, segments);
-  }
-
-  private PromptTemplate determinePromptTemplate(
-      String envPrompt, PromptTemplate providedPromptTemplate) {
-    if (providedPromptTemplate != null) {
-      return providedPromptTemplate;
-    }
-    return envPrompt.isEmpty() ? DEFAULT_PROMPT_TEMPLATE : PromptTemplate.from(envPrompt);
   }
 
   public List<TextSegment> split(Document document) {
@@ -465,6 +462,8 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
             aiMessage = chatLanguageModel.chat(messages).aiMessage();
           } else {
             // Use the local LLM (Ollama)
+            log.debug("Now using Local AI response: {}");
+
             aiMessage = ollamaChatModel.chat(messages).aiMessage();
           }
 

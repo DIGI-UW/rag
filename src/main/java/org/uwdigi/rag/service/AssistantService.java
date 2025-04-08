@@ -24,13 +24,18 @@ public class AssistantService {
   private final Assistant assistant;
   private final DataSource dataSource;
   private final ModelFactory modelFactory;
+
   private final ChatLanguageModel ollamaChatModel;
   private String response;
   private String sqlRun;
+  private String sqlPromptTemplate;
+  private boolean useCloudLLMOnly;
 
   @Autowired
   public AssistantService(
       Assistant assistant,
+      String sqlPromptTemplate,
+      Boolean useCloudLLMOnly,
       DataSource dataSource,
       ModelFactory modelFactory,
       @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel) {
@@ -38,6 +43,8 @@ public class AssistantService {
     this.dataSource = dataSource;
     this.modelFactory = modelFactory;
     this.ollamaChatModel = ollamaChatModel;
+    this.sqlPromptTemplate = sqlPromptTemplate;
+    this.useCloudLLMOnly = useCloudLLMOnly;
     this.response = "Unexpected Error occured";
     this.sqlRun = "Unexpected Error occured";
   }
@@ -77,6 +84,8 @@ public class AssistantService {
             .dataSource(dataSource)
             .sqlDialect("MySQL")
             .chatLanguageModel(chatLanguageModel)
+            .sqlPromptTemplate(sqlPromptTemplate)
+            .useCloudLLMOnly(useCloudLLMOnly)
             .ollamaChatModel(ollamaChatModel)
             .assistantService(this)
             .build();
@@ -95,3 +104,4 @@ public class AssistantService {
     return new QueryResponse(this.response, this.sqlRun);
   }
 }
+

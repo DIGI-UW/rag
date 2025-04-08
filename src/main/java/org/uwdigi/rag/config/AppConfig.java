@@ -59,10 +59,26 @@ public class AppConfig {
   @Value("${app.chatWindow.memory}")
   private int maxWindowChatMemory;
 
+  @Value("${SQL_PROMPT_TEMPLATE}")
+  private String sqlPromptTemplate;
+
+  @Value("${USE_CLOUD_LLM_ONLY}")
+  private boolean useCloudLLMOnly;
+
   private final FhirDbConfig fhirDbConfig;
 
   public AppConfig(FhirDbConfig fhirDbConfig) {
     this.fhirDbConfig = fhirDbConfig;
+  }
+
+  @Bean
+  public String sqlPromptTemplate() {
+    return sqlPromptTemplate; 
+  }
+
+  @Bean
+  public Boolean useCloudLLMOnly() {
+    return useCloudLLMOnly; 
   }
 
   /*   @Bean
@@ -175,8 +191,6 @@ public class AppConfig {
   @Bean
   public ContentRetriever sqlDatabaseContentRetriever(
       DataSource dataSource,
-      @Value("${useCloudLLMOnly:false}") boolean useCloudLLMOnly,
-      @Value("${SQL_PROMPT_TEMPLATE:}") String envPrompt,
       ChatLanguageModel geminiChatModel,
       @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel,
       @Qualifier("openaiChatLanguageModel") ChatLanguageModel openaiChatModel) {
@@ -186,7 +200,7 @@ public class AppConfig {
         .useCloudLLMOnly(useCloudLLMOnly)
         .chatLanguageModel(openaiChatModel)
         .ollamaChatModel(ollamaChatModel)
-        .envPrompt(envPrompt)
+        .sqlPromptTemplate(sqlPromptTemplate)
         .tables(tables)
         .build();
   }

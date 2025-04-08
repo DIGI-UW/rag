@@ -26,19 +26,56 @@ public class ModelFactory {
     this.modelConfig = modelConfig;
   }
 
+  //   /** Creates an instance of ChatLanguageModel based on the currently active model type. */
+  //   public ChatLanguageModel createModel(String modelName) {
+  //     // log.info("Creating model of type: {}", modelConfig.getActiveModel());
+
+  //     try {
+  //       // return switch (modelName) {
+  //       //   case "GEMINI" -> createGeminiModel();
+  //       //   case "CLAUDE" -> createClaudeModel();
+  //       //   case "OPENAI" -> createOpenAiChatModel();
+  //       //   case "OLLAMA" -> createOllamaModel();
+  //       //   case "LOCAL_AI" -> createLocalAiModel();
+  //       //   default -> createGeminiModel();
+  //       switch (modelName) {
+  //   case "GEMINI":
+  //     return createGeminiModel();
+  //   case "CLAUDE":
+  //     return createClaudeModel();
+  //   case "OPENAI":
+  //     return createOpenAiChatModel();
+  //   case "OLLAMA":
+  //     return createOllamaModel();
+  //   case "LOCAL_AI":
+  //     return createLocalAiModel();
+  //   default:
+  //     return createGeminiModel();
+  // }
+
+  //       };
+  //     } catch (Exception e) {
+  //       log.error("Failed to create model: {}", e.getMessage(), e);
+  //       throw new ModelInitializationException("Failed to initialize model", e);
+  //     }
+  //   }
   /** Creates an instance of ChatLanguageModel based on the currently active model type. */
   public ChatLanguageModel createModel(String modelName) {
-    // log.info("Creating model of type: {}", modelConfig.getActiveModel());
-
     try {
-      return switch (modelName) {
-        case "GEMINI" -> createGeminiModel();
-        case "CLAUDE" -> createClaudeModel();
-        case "OPENAI" -> createOpenAiChatModel();
-        case "OLLAMA" -> createOllamaModel();
-        case "LOCAL_AI" -> createLocalAiModel();
-        default -> createGeminiModel();
-      };
+      switch (modelName) {
+        case "GEMINI":
+          return createGeminiModel();
+        case "CLAUDE":
+          return createClaudeModel();
+        case "OPENAI":
+          return createOpenAiChatModel();
+        case "OLLAMA":
+          return createOllamaModel();
+        case "LOCAL_AI":
+          return createLocalAiModel();
+        default:
+          return createGeminiModel();
+      }
     } catch (Exception e) {
       log.error("Failed to create model: {}", e.getMessage(), e);
       throw new ModelInitializationException("Failed to initialize model", e);
