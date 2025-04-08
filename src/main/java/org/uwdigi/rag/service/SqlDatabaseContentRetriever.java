@@ -16,16 +16,15 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.embedding.onnx.bgesmallenv15q.BgeSmallEnV15QuantizedEmbeddingModel;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.rag.content.DefaultContent;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
-import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.rag.query.Query;
+import dev.langchain4j.store.embedding.EmbeddingMatch;
+import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -83,9 +82,6 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
               + "\n**Examples:**\n"
               + "- ✅ GOOD: `SELECT p.given, p.family, d.conclusion FROM...`\n"
               + "- ❌ BAD: `SELECT sr.id, o.code FROM...`\n"
-              + "\n**Error Handling:**\n"
-              + "- If request requires technical IDs: 'Cannot generate compliant FHIR query for this request'\n"
-              + "- If schema lacks needed data: 'No appropriate FHIR elements available'\n"
               + "\n**Output Format:**\n"
               + "- Only valid {{sqlDialect}} SELECT queries\n"
               + "- No explanations or additional text\n"
@@ -145,6 +141,8 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
       AssistantService assistantService,
       FhirDbConfig fhirDbConfig,
       Map<String, String> tables,
+      EmbeddingStore<TextSegment> embeddingStore,
+      EmbeddingModel embeddingModel,
       boolean setUp,
       Integer maxRetries) {
     this.dataSource = ensureNotNull(dataSource, "dataSource");
@@ -156,54 +154,8 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     this.maxRetries = getOrDefault(maxRetries, 1);
     this.assistantService = assistantService;
     this.tables = tables != null ? tables : new HashMap<>();
-
-    if (setUp) {
-      List<Object[]> obs = new ArrayList<>();
-      for (Map.Entry<String, String> entry : this.tables.entrySet()) {
-        String tableName = entry.getKey();
-        String[] columns = entry.getValue().split(",");
-
-        List<Object[]> tableResults = selectColumnsFromTable(tableName, columns, dataSource);
-        if (tableResults != null) {
-          obs.addAll(tableResults);
-        }
-      }
-
-      StringBuilder output = new StringBuilder();
-
-      for (Object[] row : obs) {
-        for (Object value : row) {
-          if (value != null) {
-            output.append(value).append("\n");
-            log.debug("Metadata for embedding: {}", value);
-          }
-        }
-      }
-
-      if (output != null && !output.toString().isBlank()) {
-        Document document = Document.document(output.toString());
-
-        List<TextSegment> segments = split(document);
-
-        /*embeddingModel = OllamaEmbeddingModel.builder()
-        .baseUrl(BASE_URL)
-        .modelName(MODEL_NAME)
-        .build();  */
-
-        embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
-        List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
-
-        embeddingStore = new InMemoryEmbeddingStore<>();
-        embeddingStore.addAll(embeddings, segments);
-      } else {
-        embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
-        embeddingStore = new InMemoryEmbeddingStore<>();
-      }
-
-    } else {
-      embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
-      embeddingStore = new InMemoryEmbeddingStore<>();
-    }
+    this.embeddingStore = embeddingStore != null ? embeddingStore : null;
+    this.embeddingModel = embeddingModel != null ? embeddingModel : null;
   }
 
   public List<TextSegment> split(Document document) {
@@ -524,14 +476,6 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
   protected String subsituteMissingParameters(String sqlQuery) {
 
-    ContentRetriever contentRetriever =
-        EmbeddingStoreContentRetriever.builder()
-            .embeddingStore(embeddingStore)
-            .embeddingModel(embeddingModel)
-            .maxResults(1) // on each interaction we will retrieve the 1 most relevant segments
-            .minScore(0.85) // we want to retrieve segments at least somewhat similar to user query
-            .build();
-
     // List to store index information
     List<int[]> quoteIndices = new ArrayList<>();
 
@@ -548,18 +492,39 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     while (matcher.find()) {
 
       String matchedString = matcher.group();
-
+      log.debug("The metadata embedding to match is: {}", matchedString);
       // Save the indices of the quoted substrings
       quoteIndices.add(new int[] {matcher.start(), matcher.end()});
 
       // Append the portion before the current match
       result.append(sqlQuery, lastIndex, matcher.start());
 
-      Query query = new Query(matchedString);
-      List<Content> content = contentRetriever.retrieve(query);
+      Embedding queryEmbedding = embeddingModel.embed(matchedString).content();
 
-      if (!content.isEmpty()) {
-        result.append("'" + content.get(0).textSegment().text() + "'");
+      EmbeddingSearchRequest embeddingSearchRequest =
+          EmbeddingSearchRequest.builder()
+              .queryEmbedding(queryEmbedding)
+              .maxResults(1)
+              .minScore(0.8) // we want to retrieve segments at least somewhat similar to user query
+              .build();
+
+      List<EmbeddingMatch<TextSegment>> relevant =
+          embeddingStore.search(embeddingSearchRequest).matches();
+
+      EmbeddingMatch<TextSegment> embeddingMatch = null;
+      if (!relevant.isEmpty()) {
+        embeddingMatch = relevant.get(0);
+      } else {
+        log.info("No relevant matches found for the search query");
+      }
+
+      if (embeddingMatch != null
+          && embeddingMatch.embedded().text() != null
+          && !embeddingMatch.embedded().text().isBlank()) {
+
+        log.debug("The subsitute embedding is: {}", embeddingMatch.embedded().text());
+
+        result.append("'" + embeddingMatch.embedded().text() + "'");
       } else {
         result.append(matchedString);
       }
