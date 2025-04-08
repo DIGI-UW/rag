@@ -184,6 +184,7 @@ public class AppConfig {
         .chatLanguageModel(openaiChatModel)
         .ollamaChatModel(ollamaChatModel)
         .tables(tables)
+        .setUp(true)
         .build();
   }
 
