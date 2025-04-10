@@ -3,6 +3,7 @@ package org.uwdigi.rag.service;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.service.AiServices;
@@ -29,13 +30,18 @@ public class AssistantService {
   private final EmbeddingModel embeddingModel;
   private final EmbeddingStore<TextSegment> embeddingStore;
   private final ModelFactory modelFactory;
+
   private final ChatLanguageModel ollamaChatModel;
   private String response;
   private String sqlRun;
+  private PromptTemplate sqlPromptTemplate;
+  private boolean useCloudLLMOnly;
 
   @Autowired
   public AssistantService(
       Assistant assistant,
+      PromptTemplate sqlPromptTemplate,
+      Boolean useCloudLLMOnly,
       DataSource dataSource,
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
@@ -47,6 +53,8 @@ public class AssistantService {
     this.embeddingModel = embeddingModel;
     this.embeddingStore = embeddingStore;
     this.ollamaChatModel = ollamaChatModel;
+    this.sqlPromptTemplate = sqlPromptTemplate;
+    this.useCloudLLMOnly = useCloudLLMOnly;
     this.response = "Unexpected Error occured";
     this.sqlRun = "Unexpected Error occured";
   }
@@ -86,6 +94,8 @@ public class AssistantService {
             .dataSource(dataSource)
             .sqlDialect("MySQL")
             .chatLanguageModel(chatLanguageModel)
+            .promptTemplate(sqlPromptTemplate)
+            .useCloudLLMOnly(useCloudLLMOnly)
             .ollamaChatModel(ollamaChatModel)
             .embeddingModel(embeddingModel)
             .embeddingStore(embeddingStore)

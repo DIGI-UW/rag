@@ -11,6 +11,7 @@ import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.allminilml6v2.AllMiniLmL6V2EmbeddingModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
+import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.model.localai.LocalAiChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
@@ -75,6 +76,12 @@ public class AppConfig {
   @Value("${app.chatWindow.memory}")
   private int maxWindowChatMemory;
 
+  @Value("${SQL_PROMPT_TEMPLATE}")
+  private PromptTemplate sqlPromptTemplate;
+
+  @Value("${USE_CLOUD_LLM_ONLY}")
+  private boolean useCloudLLMOnly;
+
   @Value("${app.pgvector.host}")
   private String pgVectorHost;
 
@@ -97,6 +104,16 @@ public class AppConfig {
 
   public AppConfig(FhirDbConfig fhirDbConfig) {
     this.fhirDbConfig = fhirDbConfig;
+  }
+
+  @Bean
+  public PromptTemplate sqlPromptTemplate() {
+    return sqlPromptTemplate;
+  }
+
+  @Bean
+  public Boolean useCloudLLMOnly() {
+    return useCloudLLMOnly;
   }
 
   /*   @Bean
@@ -272,8 +289,10 @@ public class AppConfig {
     }
     return SqlDatabaseContentRetriever.builder()
         .dataSource(dataSource)
+        .useCloudLLMOnly(useCloudLLMOnly)
         .chatLanguageModel(openaiChatModel)
         .ollamaChatModel(ollamaChatModel)
+        .promptTemplate(sqlPromptTemplate)
         .tables(tables)
         .setUp(true)
         .build();

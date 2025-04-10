@@ -90,7 +90,9 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
   private final String sqlDialect;
   private final String databaseStructure;
 
-  private final PromptTemplate promptTemplate;
+  private final boolean useCloudLLMOnly;
+
+  private PromptTemplate promptTemplate;
   private ChatLanguageModel chatLanguageModel;
   private final ChatLanguageModel ollamaChatModel;
   private final AssistantService assistantService;
@@ -141,6 +143,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
       AssistantService assistantService,
       FhirDbConfig fhirDbConfig,
       Map<String, String> tables,
+      boolean useCloudLLMOnly,
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
       boolean setUp,
@@ -148,11 +151,21 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     this.dataSource = ensureNotNull(dataSource, "dataSource");
     this.sqlDialect = getOrDefault(sqlDialect, () -> getSqlDialect(dataSource));
     this.databaseStructure = getOrDefault(databaseStructure, () -> generateDDL(dataSource));
-    this.promptTemplate = getOrDefault(promptTemplate, DEFAULT_PROMPT_TEMPLATE);
     this.chatLanguageModel = ensureNotNull(chatLanguageModel, "chatLanguageModel");
     this.ollamaChatModel = ensureNotNull(ollamaChatModel, "ollamaChatModel");
     this.maxRetries = getOrDefault(maxRetries, 1);
+    if (promptTemplate == null) {
+      this.promptTemplate = DEFAULT_PROMPT_TEMPLATE;
+    } else {
+      String tmpl = promptTemplate.template().trim();
+      if (tmpl.isEmpty() || tmpl.equals("\"\"")) {
+        this.promptTemplate = DEFAULT_PROMPT_TEMPLATE;
+      } else {
+        this.promptTemplate = promptTemplate;
+      }
+    }
     this.assistantService = assistantService;
+    this.useCloudLLMOnly = ensureNotNull(useCloudLLMOnly, "useCloudLLMOnly");
     this.tables = tables != null ? tables : new HashMap<>();
     this.embeddingStore = embeddingStore != null ? embeddingStore : null;
     this.embeddingModel = embeddingModel != null ? embeddingModel : null;
@@ -398,7 +411,15 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                       + "\n\nAnswer using the following information:\n"
                       + content.textSegment().text()));
 
-          AiMessage aiMessage = ollamaChatModel.chat(messages).aiMessage();
+          AiMessage aiMessage;
+          if (useCloudLLMOnly) {
+            // Use only the cloud-based model
+            aiMessage = chatLanguageModel.chat(messages).aiMessage();
+          } else {
+            log.debug("Now using Local AI response: {}");
+
+            aiMessage = ollamaChatModel.chat(messages).aiMessage();
+          }
 
           log.debug("Local AI response: {}", aiMessage.text());
 
