@@ -1,10 +1,13 @@
 package org.uwdigi.rag.service;
 
+import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.input.PromptTemplate;
+import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.service.AiServices;
+import dev.langchain4j.store.embedding.EmbeddingStore;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +27,8 @@ public class AssistantService {
   private static final Logger log = LoggerFactory.getLogger(AssistantService.class);
   private final Assistant assistant;
   private final DataSource dataSource;
+  private final EmbeddingModel embeddingModel;
+  private final EmbeddingStore<TextSegment> embeddingStore;
   private final ModelFactory modelFactory;
 
   private final ChatLanguageModel ollamaChatModel;
@@ -38,11 +43,15 @@ public class AssistantService {
       PromptTemplate sqlPromptTemplate,
       Boolean useCloudLLMOnly,
       DataSource dataSource,
+      EmbeddingStore<TextSegment> embeddingStore,
+      EmbeddingModel embeddingModel,
       ModelFactory modelFactory,
       @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel) {
     this.assistant = assistant;
     this.dataSource = dataSource;
     this.modelFactory = modelFactory;
+    this.embeddingModel = embeddingModel;
+    this.embeddingStore = embeddingStore;
     this.ollamaChatModel = ollamaChatModel;
     this.sqlPromptTemplate = sqlPromptTemplate;
     this.useCloudLLMOnly = useCloudLLMOnly;
@@ -88,6 +97,8 @@ public class AssistantService {
             .promptTemplate(sqlPromptTemplate)
             .useCloudLLMOnly(useCloudLLMOnly)
             .ollamaChatModel(ollamaChatModel)
+            .embeddingModel(embeddingModel)
+            .embeddingStore(embeddingStore)
             .assistantService(this)
             .build();
     log.debug("Processing query through AssistantService: {}", query);
