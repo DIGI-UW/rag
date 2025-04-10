@@ -3,6 +3,7 @@ package org.uwdigi.rag.config;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
+import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.model.localai.LocalAiChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
@@ -60,7 +61,7 @@ public class AppConfig {
   private int maxWindowChatMemory;
 
   @Value("${SQL_PROMPT_TEMPLATE}")
-  private String sqlPromptTemplate;
+  private PromptTemplate sqlPromptTemplate;
 
   @Value("${USE_CLOUD_LLM_ONLY}")
   private boolean useCloudLLMOnly;
@@ -72,13 +73,13 @@ public class AppConfig {
   }
 
   @Bean
-  public String sqlPromptTemplate() {
-    return sqlPromptTemplate; 
+  public PromptTemplate sqlPromptTemplate() {
+    return sqlPromptTemplate;
   }
 
   @Bean
   public Boolean useCloudLLMOnly() {
-    return useCloudLLMOnly; 
+    return useCloudLLMOnly;
   }
 
   /*   @Bean
@@ -195,12 +196,13 @@ public class AppConfig {
       @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel,
       @Qualifier("openaiChatLanguageModel") ChatLanguageModel openaiChatModel) {
     Map<String, String> tables = fhirDbConfig != null ? fhirDbConfig.getTables() : new HashMap<>();
+    log.warn("sqlPromptTemplate: {}", sqlPromptTemplate);
     return SqlDatabaseContentRetriever.builder()
         .dataSource(dataSource)
         .useCloudLLMOnly(useCloudLLMOnly)
         .chatLanguageModel(openaiChatModel)
         .ollamaChatModel(ollamaChatModel)
-        .sqlPromptTemplate(sqlPromptTemplate)
+        .promptTemplate(sqlPromptTemplate)
         .tables(tables)
         .build();
   }

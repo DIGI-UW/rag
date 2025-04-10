@@ -149,7 +149,6 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
       DataSource dataSource,
       String sqlDialect,
       String databaseStructure,
-      String sqlPromptTemplate,
       PromptTemplate promptTemplate,
       ChatLanguageModel chatLanguageModel,
       @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel,
@@ -164,12 +163,15 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     this.chatLanguageModel = ensureNotNull(chatLanguageModel, "chatLanguageModel");
     this.ollamaChatModel = ensureNotNull(ollamaChatModel, "ollamaChatModel");
     this.maxRetries = getOrDefault(maxRetries, 1);
-    if (sqlPromptTemplate == null
-        || sqlPromptTemplate.isEmpty()
-        || sqlPromptTemplate.equals("\"\"")) {
-      this.promptTemplate = getOrDefault(promptTemplate, DEFAULT_PROMPT_TEMPLATE);
+    if (promptTemplate == null) {
+      this.promptTemplate = DEFAULT_PROMPT_TEMPLATE;
     } else {
-      this.promptTemplate = PromptTemplate.from(sqlPromptTemplate);
+      String tmpl = promptTemplate.template().trim();
+      if (tmpl.isEmpty() || tmpl.equals("\"\"")) {
+        this.promptTemplate = DEFAULT_PROMPT_TEMPLATE;
+      } else {
+        this.promptTemplate = promptTemplate;
+      }
     }
     this.assistantService = assistantService;
     this.useCloudLLMOnly = ensureNotNull(useCloudLLMOnly, "useCloudLLMOnly");
@@ -461,7 +463,6 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
             // Use only the cloud-based model
             aiMessage = chatLanguageModel.chat(messages).aiMessage();
           } else {
-            // Use the local LLM (Ollama)
             log.debug("Now using Local AI response: {}");
 
             aiMessage = ollamaChatModel.chat(messages).aiMessage();
