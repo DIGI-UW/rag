@@ -29,20 +29,14 @@ public class ModelFactory {
   /** Creates an instance of ChatLanguageModel based on the currently active model type. */
   public ChatLanguageModel createModel(String modelName) {
     try {
-      switch (modelName) {
-        case "GEMINI":
-          return createGeminiModel();
-        case "CLAUDE":
-          return createClaudeModel();
-        case "OPENAI":
-          return createOpenAiChatModel();
-        case "OLLAMA":
-          return createOllamaModel();
-        case "LOCAL_AI":
-          return createLocalAiModel();
-        default:
-          return createGeminiModel();
-      }
+      return switch (modelName) {
+        case "GEMINI" -> createGeminiModel();
+        case "CLAUDE" -> createClaudeModel();
+        case "OPENAI" -> createOpenAiChatModel();
+        case "OLLAMA" -> createOllamaModel();
+        case "LOCAL_AI" -> createLocalAiModel();
+        default -> createGeminiModel();
+      };
     } catch (Exception e) {
       log.error("Failed to create model: {}", e.getMessage(), e);
       throw new ModelInitializationException("Failed to initialize model", e);
