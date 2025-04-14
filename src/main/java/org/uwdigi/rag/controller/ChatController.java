@@ -1,5 +1,9 @@
 package org.uwdigi.rag.controller;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,59 +32,21 @@ public class ChatController {
         new ChatResponse(queryResponse.getResponse(), queryResponse.getSqlRun()));
   }
 
+  @Getter
+  @Setter
+  @NoArgsConstructor
+  @AllArgsConstructor
   public static class ChatRequest {
     private String query;
     private String model;
-
-    public ChatRequest() {}
-
-    public ChatRequest(String query, String model) {
-      this.query = query;
-      this.model = model;
-    }
-
-    public String getQuery() {
-      return query;
-    }
-
-    public void setQuery(String query) {
-      this.query = query;
-    }
-
-    public String getModel() {
-      return model;
-    }
-
-    public void setModel(String model) {
-      this.model = model;
-    }
   }
 
+  @Getter
+  @Setter
+  @NoArgsConstructor
+  @AllArgsConstructor
   public static class ChatResponse {
     private String response;
     private String logs;
-
-    public ChatResponse() {}
-
-    public ChatResponse(String response, String logs) {
-      this.response = response;
-      this.logs = logs;
-    }
-
-    public String getResponse() {
-      return response;
-    }
-
-    public void setResponse(String response) {
-      this.response = response;
-    }
-
-    public String getLogs() {
-      return logs;
-    }
-
-    public void setLogs(String logs) {
-      this.logs = logs;
-    }
   }
 }
