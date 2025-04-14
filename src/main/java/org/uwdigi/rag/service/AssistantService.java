@@ -84,7 +84,6 @@ public class AssistantService {
     ContentRetriever contentRetriever =
         SqlDatabaseContentRetriever.builder()
             .dataSource(dataSource)
-            .sqlDialect("MySQL")
             .chatLanguageModel(chatLanguageModel)
             .ollamaChatModel(ollamaChatModel)
             .embeddingModel(embeddingModel)

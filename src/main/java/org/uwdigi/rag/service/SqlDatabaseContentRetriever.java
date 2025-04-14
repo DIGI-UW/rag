@@ -70,6 +70,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
               + "1. Database follows flattened FHIR resource models\n"
               + "2. **As last resort should you include these in results:** id, uuid, _id, *_id columns, *reference*, *identifier*\n"
               + "3. **If codes must be included:** Always pair with display/text (e.g., `code` + `display`)\n"
+              + "4. **SQL query should be valid to run on {{sqlDialect}} database**\n"
               + "\n**Clinical Data Principles:**\n"
               + "- Prioritize human-readable columns (names, descriptions, display values)\n"
               + "- Focus on clinically actionable information\n"
@@ -143,7 +144,6 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
       Map<String, String> tables,
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
-      boolean setUp,
       Integer maxRetries) {
     this.dataSource = ensureNotNull(dataSource, "dataSource");
     this.sqlDialect = getOrDefault(sqlDialect, () -> getSqlDialect(dataSource));
@@ -246,17 +246,43 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     }
   }
 
+  public static String getCurrentDatabase(Connection connection) {
+    String currentDb = null;
+    try {
+      // Try SQL query specific to Hive/SparkDB
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery("SELECT current_database()")) {
+        if (rs.next()) {
+          currentDb = rs.getString(1);
+        }
+      }
+    } catch (SQLException e) {
+      try {
+        currentDb = connection.getCatalog();
+      } catch (SQLException e2) {
+        // TO DO
+      }
+    }
+    return currentDb;
+  }
+
   private static String generateDDL(DataSource dataSource) {
     StringBuilder ddl = new StringBuilder();
 
     try (Connection connection = dataSource.getConnection()) {
       DatabaseMetaData metaData = connection.getMetaData();
-      System.out.println(">>>>>>>>>>>>> >>>>>>>> Connected :");
-      ResultSet tables = metaData.getTables(null, null, "%", new String[] {"VIEW"});
+
+      String currentDb = connection.getCatalog(); // Gets the currently selected database
+
+      currentDb = getCurrentDatabase(connection);
+
+      log.debug(">>>>>>>>>>>>> >>>>>>>> Connected to database: {}", currentDb);
+      // Consider configuring to allow users query only views or tables
+      ResultSet tables = metaData.getTables(currentDb, null, "%", new String[] {"TABLE", "VIEW"});
 
       while (tables.next()) {
         String tableName = tables.getString("TABLE_NAME");
-        System.out.println(">>>>>>>>>>>>> >>>>>>>> Connected to Table :" + tableName);
+        log.debug(">>>>>>>>>>>>> >>>>>>>> Connected to Table : {}", tableName);
         String createTableStatement = generateCreateTableStatement(tableName, metaData);
         ddl.append(createTableStatement).append("\n");
       }
@@ -272,13 +298,24 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
     try {
       ResultSet columns = metaData.getColumns(null, null, tableName, null);
-      // ResultSet pk = metaData.getPrimaryKeys(null, null, tableName);
-      // ResultSet fks = metaData.getImportedKeys(null, null, tableName);
 
+      String productName = metaData.getDatabaseProductName();
+      boolean isHive =
+          productName != null && (productName.contains("Hive") || productName.contains("Spark"));
+
+      ResultSet pk = null;
+      ResultSet fks = null;
       String primaryKeyColumn = "";
-      /* if (pk.next()) {
-           primaryKeyColumn = pk.getString("COLUMN_NAME");
-      } */
+
+      if (!isHive) {
+
+        pk = metaData.getPrimaryKeys(null, null, tableName);
+        fks = metaData.getImportedKeys(null, null, tableName);
+      }
+      if (pk != null && pk.next()) {
+
+        primaryKeyColumn = pk.getString("COLUMN_NAME");
+      }
 
       createTableStatement.append("CREATE TABLE ").append(tableName).append(" (\n");
 
@@ -321,20 +358,22 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
               .append("',\n");
         }
       }
+      if (fks != null && fks.next()) {
 
-      /* while (fks.next()) {
+        while (fks.next()) {
           String fkColumnName = fks.getString("FKCOLUMN_NAME");
           String pkTableName = fks.getString("PKTABLE_NAME");
           String pkColumnName = fks.getString("PKCOLUMN_NAME");
           createTableStatement
-                  .append("  FOREIGN KEY (")
-                  .append(fkColumnName)
-                  .append(") REFERENCES ")
-                  .append(pkTableName)
-                  .append("(")
-                  .append(pkColumnName)
-                  .append("),\n");
-      } */
+              .append("  FOREIGN KEY (")
+              .append(fkColumnName)
+              .append(") REFERENCES ")
+              .append(pkTableName)
+              .append("(")
+              .append(pkColumnName)
+              .append("),\n");
+        }
+      }
 
       if (createTableStatement.charAt(createTableStatement.length() - 2) == ',') {
         createTableStatement.delete(
@@ -442,18 +481,6 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
   }
 
   protected Prompt createSystemPrompt(Query naturalLanguageQuery) {
-
-    /*         ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.builder()
-    .embeddingStore(embeddingStore)
-    .embeddingModel(embeddingModel)
-    .maxResults(3) // on each interaction we will retrieve the 2 most relevant segments
-    .minScore(0.5) // we want to retrieve segments at least somewhat similar to user query
-    .build();
-    List<Content> content = contentRetriever.retrieve(naturalLanguageQuery);
-
-    String relevantEmbeddings = content.stream()
-    .map(c -> c.textSegment().text()) // Extract the text from each Content object
-    .collect(Collectors.joining()); */
 
     Map<String, Object> variables = new HashMap<>();
     variables.put("sqlDialect", sqlDialect);

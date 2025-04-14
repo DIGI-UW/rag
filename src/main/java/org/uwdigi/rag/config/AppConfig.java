@@ -93,39 +93,46 @@ public class AppConfig {
   @Value("${app.pgvector.table}")
   private String pgVectorTable;
 
+  @Value("${spring.datasource.type}")
+  private String datasourceType;
+
   private final FhirDbConfig fhirDbConfig;
 
   public AppConfig(FhirDbConfig fhirDbConfig) {
     this.fhirDbConfig = fhirDbConfig;
   }
 
-  /*   @Bean
-  public DataSource dataSource() {
-    MariaDbDataSource dataSource = new MariaDbDataSource();
-    try {
-      dataSource.setUrl(dbUrl);
-      dataSource.setUser(dbUser);
-      dataSource.setPassword(dbPassword);
-
-      log.info("Initializing Datasource at " + dbUrl + " " + dbUser + " " + dbPassword);
-
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to configure datasource", e);
-    }
-    return dataSource;
-  } */
   @Bean
   public DataSource dataSource() {
-    BasicDataSource dataSource = new BasicDataSource();
     try {
-      dataSource.setUrl(dbUrl);
-      dataSource.setUsername(dbUser);
-      dataSource.setDriverClassName("org.apache.hive.jdbc.HiveDriver");
-      dataSource.setPassword(dbPassword);
+      log.info("Initializing DataSource with URL: {}", dbUrl);
+
+      BasicDataSource defaultDataSource = new BasicDataSource();
+      defaultDataSource.setUrl(dbUrl);
+      defaultDataSource.setUsername(dbUser);
+      defaultDataSource.setPassword(dbPassword);
+      defaultDataSource.setDriverClassName(determineDriverClassNameFromUrl(dbUrl));
+
+      return defaultDataSource;
     } catch (Exception e) {
+      log.error("Failed to configure datasource", e);
       throw new RuntimeException("Failed to configure datasource", e);
     }
-    return dataSource;
+  }
+
+  private String determineDriverClassNameFromUrl(String url) {
+    if (url.contains("mysql")) {
+      return "com.mysql.cj.jdbc.Driver";
+    } else if (url.contains("postgresql") || url.contains("pgsql")) {
+      return "org.postgresql.Driver";
+    } else if (url.contains("mariadb")) {
+      return "org.mariadb.jdbc.Driver";
+    } else if (url.contains("hive") || url.contains("spark")) {
+      return "org.apache.hive.jdbc.HiveDriver";
+    } else {
+      log.warn("Could not determine driver for URL: {}. Using generic driver.", url);
+      return "java.sql.Driver";
+    }
   }
 
   @Bean
@@ -275,7 +282,6 @@ public class AppConfig {
         .chatLanguageModel(openaiChatModel)
         .ollamaChatModel(ollamaChatModel)
         .tables(tables)
-        .setUp(true)
         .build();
   }
 
