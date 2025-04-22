@@ -32,10 +32,10 @@ import javax.sql.DataSource;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.uwdigi.rag.service.SqlDatabaseContentRetriever;
@@ -79,9 +79,6 @@ public class AppConfig {
   @Value("${SQL_PROMPT_TEMPLATE}")
   private PromptTemplate sqlPromptTemplate;
 
-  @Value("${USE_CLOUD_LLM_ONLY}")
-  private boolean useCloudLLMOnly;
-
   @Value("${app.pgvector.host}")
   private String pgVectorHost;
 
@@ -111,10 +108,6 @@ public class AppConfig {
     return sqlPromptTemplate;
   }
 
-  @Bean
-  public Boolean useCloudLLMOnly() {
-    return useCloudLLMOnly;
-  }
 
   /*   @Bean
   public DataSource dataSource() {
@@ -145,7 +138,8 @@ public class AppConfig {
     return dataSource;
   }
 
-  @Bean
+  @Bean(name = "geminiChatLanguageModel")
+  @Primary 
   public ChatLanguageModel geminiChatModel() {
     log.info("Initializing Gemini Chat Model...");
     try {
@@ -202,7 +196,7 @@ public class AppConfig {
     }
   }
 
-  @Bean
+  @Bean(name = "localAiChatLanguageModel")
   public ChatLanguageModel localAiChatModel() {
     log.info("Initializing Local AI Chat Model...");
     try {
@@ -252,8 +246,8 @@ public class AppConfig {
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
       ChatLanguageModel geminiChatModel,
-      @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel,
-      @Qualifier("openaiChatLanguageModel") ChatLanguageModel openaiChatModel) {
+      ModelConfig modelConfig
+      ) {
 
     Map<String, String> tables = fhirDbConfig != null ? fhirDbConfig.getTables() : new HashMap<>();
 
@@ -289,9 +283,7 @@ public class AppConfig {
     }
     return SqlDatabaseContentRetriever.builder()
         .dataSource(dataSource)
-        .useCloudLLMOnly(useCloudLLMOnly)
-        .chatLanguageModel(openaiChatModel)
-        .ollamaChatModel(ollamaChatModel)
+        .chatLanguageModel(modelConfig.getSqlGenerationModel())
         .promptTemplate(sqlPromptTemplate)
         .tables(tables)
         .setUp(true)
@@ -300,9 +292,11 @@ public class AppConfig {
 
   @Bean
   public Assistant assistant(
-      ChatLanguageModel geminiChatModel, ContentRetriever sqlDatabaseContentRetriever) {
+      ModelConfig modelConfig,
+      ChatLanguageModel geminiChatModel,
+      ContentRetriever sqlDatabaseContentRetriever) {
     return AiServices.builder(Assistant.class)
-        .chatLanguageModel(geminiChatModel)
+        .chatLanguageModel(modelConfig.getAnswerGenerationModel())
         .contentRetriever(sqlDatabaseContentRetriever)
         .chatMemory(MessageWindowChatMemory.withMaxMessages(maxWindowChatMemory))
         .build();

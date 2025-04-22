@@ -3,8 +3,8 @@ package org.uwdigi.rag.service;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.embedding.EmbeddingStore;
@@ -12,8 +12,8 @@ import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.uwdigi.rag.config.ModelConfig;
 import org.uwdigi.rag.shared.Assistant;
 import org.uwdigi.rag.shared.QueryResponse;
 
@@ -31,30 +31,29 @@ public class AssistantService {
   private final EmbeddingStore<TextSegment> embeddingStore;
   private final ModelFactory modelFactory;
 
-  private final ChatLanguageModel ollamaChatModel;
   private String response;
   private String sqlRun;
   private PromptTemplate sqlPromptTemplate;
   private boolean useCloudLLMOnly;
+  private final ModelConfig modelConfig;
 
   @Autowired
   public AssistantService(
       Assistant assistant,
       PromptTemplate sqlPromptTemplate,
-      Boolean useCloudLLMOnly,
+      ModelConfig modelConfig,
       DataSource dataSource,
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
-      ModelFactory modelFactory,
-      @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel) {
+      ModelFactory modelFactory
+      ) {
     this.assistant = assistant;
     this.dataSource = dataSource;
     this.modelFactory = modelFactory;
     this.embeddingModel = embeddingModel;
     this.embeddingStore = embeddingStore;
-    this.ollamaChatModel = ollamaChatModel;
     this.sqlPromptTemplate = sqlPromptTemplate;
-    this.useCloudLLMOnly = useCloudLLMOnly;
+    this.modelConfig = modelConfig;
     this.response = "Unexpected Error occured";
     this.sqlRun = "Unexpected Error occured";
   }
@@ -86,17 +85,15 @@ public class AssistantService {
    */
   public QueryResponse processQuery(String query, String modelName) {
     log.debug("Processing with model: {}", modelName);
-
-    ChatLanguageModel chatLanguageModel = this.modelFactory.createModel(modelName);
+    
+    ChatLanguageModel answerModel = modelConfig.getAnswerGenerationModel();
 
     ContentRetriever contentRetriever =
         SqlDatabaseContentRetriever.builder()
             .dataSource(dataSource)
             .sqlDialect("MySQL")
-            .chatLanguageModel(chatLanguageModel)
+            .chatLanguageModel(modelConfig.getSqlGenerationModel())
             .promptTemplate(sqlPromptTemplate)
-            .useCloudLLMOnly(useCloudLLMOnly)
-            .ollamaChatModel(ollamaChatModel)
             .embeddingModel(embeddingModel)
             .embeddingStore(embeddingStore)
             .assistantService(this)
@@ -104,7 +101,7 @@ public class AssistantService {
     log.debug("Processing query through AssistantService: {}", query);
     String answer =
         AiServices.builder(Assistant.class)
-            .chatLanguageModel(chatLanguageModel)
+            .chatLanguageModel(answerModel)
             .contentRetriever(contentRetriever)
             .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
             .build()

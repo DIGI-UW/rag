@@ -1,7 +1,10 @@
 package org.uwdigi.rag.config;
 
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
@@ -36,6 +39,28 @@ public class ModelConfig {
 
   @Value("${app.local-ai.model-name}")
   private String localAiModelName;
+
+  @Value("${app.sql.generation.model}")
+  private String sqlGenerationModel;
+
+  @Value("${app.answer.generation.model}")
+  private String answerGenerationModel;
+
+  @Autowired
+  @Qualifier("geminiChatLanguageModel")
+  private ChatLanguageModel geminiModel;
+
+  @Autowired
+  @Qualifier("ollamaChatLanguageModel")
+  private ChatLanguageModel ollamaModel;
+
+  @Autowired
+  @Qualifier("openaiChatLanguageModel")
+  private ChatLanguageModel openaiModel;
+
+  @Autowired
+  @Qualifier("localAiChatLanguageModel")
+  private ChatLanguageModel localAiModel;
 
   public String getGeminiApiKey() {
     return geminiApiKey;
@@ -99,5 +124,27 @@ public class ModelConfig {
 
   public void setLocalAiModelName(String localAiModelName) {
     this.localAiModelName = localAiModelName;
+  }
+
+  public ChatLanguageModel getSqlGenerationModel() {
+    return switch (sqlGenerationModel.toLowerCase()) {
+      case "ollama" -> ollamaModel;
+      case "openai" -> openaiModel;
+      case "gemini" -> geminiModel;
+      default ->
+          throw new IllegalArgumentException("Invalid SQL generation model: " + sqlGenerationModel);
+    };
+  }
+
+  public ChatLanguageModel getAnswerGenerationModel() {
+    return switch (answerGenerationModel.toLowerCase()) {
+      case "ollama" -> ollamaModel;
+      case "openai" -> openaiModel;
+      case "localai" -> localAiModel;
+      case "gemini" -> geminiModel;
+      default ->
+          throw new IllegalArgumentException(
+              "Invalid answer generation model: " + answerGenerationModel);
+    };
   }
 }
