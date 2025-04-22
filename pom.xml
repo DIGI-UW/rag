@@ -12,7 +12,7 @@
 	<organization>
 		<name>DIGI UW Inc.</name>
 		<url>https://uwdigi.org</url>
-  	</organization>
+	</organization>
 	<groupId>org.uwdigi</groupId>
 	<artifactId>rag</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
@@ -72,10 +72,10 @@
 		</dependency>
 
 		<dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-anthropic</artifactId>
-            <version>1.0.0-beta1</version>
-        </dependency>
+			<groupId>dev.langchain4j</groupId>
+			<artifactId>langchain4j-anthropic</artifactId>
+			<version>1.0.0-beta1</version>
+		</dependency>
 
 		<dependency>
 			<groupId>dev.langchain4j</groupId>
@@ -122,17 +122,17 @@
 			<version>1.0.0-beta1</version>
 		</dependency>
 
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-pgvector</artifactId>
-            <version>1.0.0-beta2</version>
-        </dependency>
+		<dependency>
+			<groupId>dev.langchain4j</groupId>
+			<artifactId>langchain4j-pgvector</artifactId>
+			<version>1.0.0-beta2</version>
+		</dependency>
 
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
-            <version>1.0.0-beta2</version>
-        </dependency>
+		<dependency>
+			<groupId>dev.langchain4j</groupId>
+			<artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
+			<version>1.0.0-beta2</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
@@ -167,20 +167,49 @@
 		</dependency>
 
 		<!-- Database -->
+		<!-- MySQL Connector -->
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>8.0.33</version>
+		</dependency>
+
+		<!-- PostgreSQL Driver -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<version>42.6.0</version>
+		</dependency>
+
+		<!-- MariaDB Driver -->
 		<dependency>
 			<groupId>org.mariadb.jdbc</groupId>
 			<artifactId>mariadb-java-client</artifactId>
+			<version>3.2.0</version>
 		</dependency>
+
+		<!-- Apache Commons DBCP for connection pooling -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-dbcp2</artifactId>
+			<version>2.9.0</version>
+		</dependency>
+
+
+		<!-- <dependency>
+			<groupId>org.mariadb.jdbc</groupId>
+			<artifactId>mariadb-java-client</artifactId>
+		</dependency> -->
 		<dependency>
 			<groupId>org.apache.hive</groupId>
 			<artifactId>hive-jdbc</artifactId>
-			<version>3.1.3</version> 
+			<version>3.1.3</version>
 			<exclusions>
 				<exclusion>
 					<groupId>jdk.tools</groupId>
 					<artifactId>jdk.tools</artifactId>
 				</exclusion>
-				 <exclusion>
+				<exclusion>
 					<groupId>org.eclipse.jetty</groupId>
 					<artifactId>jetty-servlet</artifactId>
 				</exclusion>
@@ -308,7 +337,7 @@
 					<groupId>org.eclipse.jetty</groupId>
 					<artifactId>jetty-runner</artifactId>
 				</exclusion>
-            </exclusions>
+			</exclusions>
 		</dependency>
 
 		<!-- Development Tools -->

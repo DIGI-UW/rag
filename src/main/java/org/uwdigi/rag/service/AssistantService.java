@@ -94,6 +94,7 @@ public class AssistantService {
             .sqlDialect("MySQL")
             .chatLanguageModel(modelConfig.getSqlGenerationModel())
             .promptTemplate(sqlPromptTemplate)
+
             .embeddingModel(embeddingModel)
             .embeddingStore(embeddingStore)
             .assistantService(this)
