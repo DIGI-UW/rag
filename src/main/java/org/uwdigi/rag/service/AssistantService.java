@@ -32,10 +32,12 @@ public class AssistantService {
   private final ChatLanguageModel ollamaChatModel;
   private String response;
   private String sqlRun;
+  private String[] schemaType;
 
   @Autowired
   public AssistantService(
       Assistant assistant,
+      String[] schemaType,
       DataSource dataSource,
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
@@ -49,6 +51,7 @@ public class AssistantService {
     this.ollamaChatModel = ollamaChatModel;
     this.response = "Unexpected Error occured";
     this.sqlRun = "Unexpected Error occured";
+    this.schemaType = schemaType;
   }
 
   public void updateSqlRun(String sqlRun) {
@@ -88,6 +91,7 @@ public class AssistantService {
             .ollamaChatModel(ollamaChatModel)
             .embeddingModel(embeddingModel)
             .embeddingStore(embeddingStore)
+            .schemaType(schemaType)
             .assistantService(this)
             .build();
     log.debug("Processing query through AssistantService: {}", query);
