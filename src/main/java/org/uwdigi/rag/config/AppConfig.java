@@ -75,6 +75,9 @@ public class AppConfig {
   @Value("${app.chatWindow.memory}")
   private int maxWindowChatMemory;
 
+  @Value("${app.db.schema.type}")
+  private String appDbSchemaType;
+
   @Value("${app.pgvector.host}")
   private String pgVectorHost;
 
@@ -100,6 +103,11 @@ public class AppConfig {
 
   public AppConfig(FhirDbConfig fhirDbConfig) {
     this.fhirDbConfig = fhirDbConfig;
+  }
+
+  @Bean
+  public String[] schemaType() {
+    return appDbSchemaType.split(",");
   }
 
   @Bean
@@ -239,6 +247,7 @@ public class AppConfig {
   @Bean
   public ContentRetriever sqlDatabaseContentRetriever(
       DataSource dataSource,
+      String[] schemaType,
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
       ChatLanguageModel geminiChatModel,
@@ -282,6 +291,7 @@ public class AppConfig {
         .chatLanguageModel(openaiChatModel)
         .ollamaChatModel(ollamaChatModel)
         .tables(tables)
+        .schemaType(schemaType)
         .build();
   }
 
