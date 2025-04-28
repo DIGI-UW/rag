@@ -11,6 +11,7 @@ import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.allminilml6v2.AllMiniLmL6V2EmbeddingModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
+import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.model.localai.LocalAiChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
@@ -35,6 +36,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.uwdigi.rag.service.SqlDatabaseContentRetriever;
@@ -75,6 +77,9 @@ public class AppConfig {
   @Value("${app.chatWindow.memory}")
   private int maxWindowChatMemory;
 
+  @Value("${SQL_PROMPT_TEMPLATE}")
+  private PromptTemplate sqlPromptTemplate;
+
   @Value("${app.db.schema.type}")
   private String appDbSchemaType;
 
@@ -99,6 +104,9 @@ public class AppConfig {
   @Value("${spring.datasource.type}")
   private String datasourceType;
 
+  @Value("${app.answer.generation.model}")
+  private String answerGenerationModel;
+
   private final FhirDbConfig fhirDbConfig;
 
   public AppConfig(FhirDbConfig fhirDbConfig) {
@@ -106,6 +114,10 @@ public class AppConfig {
   }
 
   @Bean
+  public PromptTemplate sqlPromptTemplate() {
+    return sqlPromptTemplate;
+  }
+
   public String[] schemaType() {
     return appDbSchemaType.split(",");
   }
@@ -143,7 +155,8 @@ public class AppConfig {
     }
   }
 
-  @Bean
+  @Bean(name = "geminiChatLanguageModel")
+  @Primary
   public ChatLanguageModel geminiChatModel() {
     log.info("Initializing Gemini Chat Model...");
     try {
@@ -200,7 +213,7 @@ public class AppConfig {
     }
   }
 
-  @Bean
+  @Bean(name = "localAiChatLanguageModel")
   public ChatLanguageModel localAiChatModel() {
     log.info("Initializing Local AI Chat Model...");
     try {
@@ -219,6 +232,24 @@ public class AppConfig {
       log.error("Failed to initialize Local AI Chat Model: {}", e.getMessage(), e);
       throw new ModelInitializationException("Local AI Chat Model initialization failed", e);
     }
+  }
+
+  @Bean(name = "answerChatLanguageModel")
+  public ChatLanguageModel answerChatLanguageModel(
+      @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatLanguageModel,
+      @Qualifier("openaiChatLanguageModel") ChatLanguageModel openaiChatLanguageModel,
+      @Qualifier("localAiChatLanguageModel") ChatLanguageModel localAiChatLanguageModel,
+      @Qualifier("geminiChatLanguageModel") ChatLanguageModel geminiChatLanguageModel) {
+
+    return switch (answerGenerationModel) {
+      case "ollama" -> ollamaChatLanguageModel;
+      case "openai" -> openaiChatLanguageModel;
+      case "localai" -> localAiChatLanguageModel;
+      case "gemini" -> geminiChatLanguageModel;
+      default ->
+          throw new IllegalArgumentException(
+              "Invalid answer generation model: " + answerGenerationModel);
+    };
   }
 
   @Bean
@@ -251,8 +282,8 @@ public class AppConfig {
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
       ChatLanguageModel geminiChatModel,
-      @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel,
-      @Qualifier("openaiChatLanguageModel") ChatLanguageModel openaiChatModel) {
+      @Qualifier("answerChatLanguageModel") ChatLanguageModel answerChatLanguageModel,
+      ModelConfig modelConfig) {
 
     Map<String, String> tables = fhirDbConfig != null ? fhirDbConfig.getTables() : new HashMap<>();
 
@@ -288,8 +319,9 @@ public class AppConfig {
     }
     return SqlDatabaseContentRetriever.builder()
         .dataSource(dataSource)
-        .chatLanguageModel(openaiChatModel)
-        .ollamaChatModel(ollamaChatModel)
+        .chatLanguageModel(geminiChatModel)
+        .answerChatLanguageModel(answerChatLanguageModel)
+        .promptTemplate(sqlPromptTemplate)
         .tables(tables)
         .schemaType(schemaType)
         .build();
@@ -297,7 +329,9 @@ public class AppConfig {
 
   @Bean
   public Assistant assistant(
-      ChatLanguageModel geminiChatModel, ContentRetriever sqlDatabaseContentRetriever) {
+      ModelConfig modelConfig,
+      ChatLanguageModel geminiChatModel,
+      ContentRetriever sqlDatabaseContentRetriever) {
     return AiServices.builder(Assistant.class)
         .chatLanguageModel(geminiChatModel)
         .contentRetriever(sqlDatabaseContentRetriever)

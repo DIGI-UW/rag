@@ -91,9 +91,9 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
   private final String sqlDialect;
   private final String databaseStructure;
 
-  private final PromptTemplate promptTemplate;
+  private PromptTemplate promptTemplate;
   private ChatLanguageModel chatLanguageModel;
-  private final ChatLanguageModel ollamaChatModel;
+  private final ChatLanguageModel answerChatLanguageModel;
   private final AssistantService assistantService;
   private final Map<String, String> tables;
   private final int maxRetries;
@@ -137,22 +137,32 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
       String databaseStructure,
       PromptTemplate promptTemplate,
       ChatLanguageModel chatLanguageModel,
-      @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatModel,
       AssistantService assistantService,
       FhirDbConfig fhirDbConfig,
       Map<String, String> tables,
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
+      @Qualifier("answerChatLanguageModel") ChatLanguageModel answerChatLanguageModel,
       String[] schemaType,
       Integer maxRetries) {
     this.schemaType = schemaType;
     this.dataSource = ensureNotNull(dataSource, "dataSource");
     this.sqlDialect = getOrDefault(sqlDialect, () -> getSqlDialect(dataSource));
     this.databaseStructure = getOrDefault(databaseStructure, () -> generateDDL(dataSource));
-    this.promptTemplate = getOrDefault(promptTemplate, DEFAULT_PROMPT_TEMPLATE);
     this.chatLanguageModel = ensureNotNull(chatLanguageModel, "chatLanguageModel");
-    this.ollamaChatModel = ensureNotNull(ollamaChatModel, "ollamaChatModel");
+    this.answerChatLanguageModel =
+        ensureNotNull(answerChatLanguageModel, "answerChatLanguageModel");
     this.maxRetries = getOrDefault(maxRetries, 1);
+    if (promptTemplate == null) {
+      this.promptTemplate = DEFAULT_PROMPT_TEMPLATE;
+    } else {
+      String tmpl = promptTemplate.template().trim();
+      if (tmpl.isEmpty() || tmpl.equals("\"\"")) {
+        this.promptTemplate = DEFAULT_PROMPT_TEMPLATE;
+      } else {
+        this.promptTemplate = promptTemplate;
+      }
+    }
     this.assistantService = assistantService;
     this.tables = tables != null ? tables : new HashMap<>();
     this.embeddingStore = embeddingStore != null ? embeddingStore : null;
@@ -437,7 +447,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                       + "\n\nAnswer using the following information:\n"
                       + content.textSegment().text()));
 
-          AiMessage aiMessage = ollamaChatModel.chat(messages).aiMessage();
+          AiMessage aiMessage = answerChatLanguageModel.chat(messages).aiMessage();
 
           log.debug("Local AI response: {}", aiMessage.text());
 

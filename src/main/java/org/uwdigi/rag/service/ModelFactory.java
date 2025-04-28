@@ -28,8 +28,6 @@ public class ModelFactory {
 
   /** Creates an instance of ChatLanguageModel based on the currently active model type. */
   public ChatLanguageModel createModel(String modelName) {
-    // log.info("Creating model of type: {}", modelConfig.getActiveModel());
-
     try {
       return switch (modelName) {
         case "GEMINI" -> createGeminiModel();
