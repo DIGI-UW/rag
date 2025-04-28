@@ -79,6 +79,9 @@ public class AppConfig {
   @Value("${SQL_PROMPT_TEMPLATE}")
   private PromptTemplate sqlPromptTemplate;
 
+  @Value("${app.db.schema.type}")
+  private String appDbSchemaType;
+
   @Value("${app.pgvector.host}")
   private String pgVectorHost;
 
@@ -111,6 +114,9 @@ public class AppConfig {
     return sqlPromptTemplate;
   }
 
+  public String[] schemaType() {
+    return appDbSchemaType.split(",");
+  }
 
   @Bean
   public DataSource dataSource() {
@@ -250,6 +256,7 @@ public class AppConfig {
   @Bean
   public ContentRetriever sqlDatabaseContentRetriever(
       DataSource dataSource,
+      String[] schemaType,
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
       ChatLanguageModel geminiChatModel,
@@ -293,6 +300,7 @@ public class AppConfig {
         .chatLanguageModel(modelConfig.getSqlGenerationModel())
         .promptTemplate(sqlPromptTemplate)
         .tables(tables)
+        .schemaType(schemaType)
         .build();
   }
 

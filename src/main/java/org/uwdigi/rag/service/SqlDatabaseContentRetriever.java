@@ -97,8 +97,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
   private final int maxRetries;
   private final EmbeddingStore<TextSegment> embeddingStore;
   private final EmbeddingModel embeddingModel;
-  static String MODEL_NAME = "llama3";
-  static String BASE_URL = "http://localhost:11434";
+  String[] schemaType;
 
   private static final Logger log = LoggerFactory.getLogger(SqlDatabaseContentRetriever.class);
 
@@ -141,7 +140,9 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
       Map<String, String> tables,
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
+      String[] schemaType,
       Integer maxRetries) {
+    this.schemaType = schemaType;
     this.dataSource = ensureNotNull(dataSource, "dataSource");
     this.sqlDialect = getOrDefault(sqlDialect, () -> getSqlDialect(dataSource));
     this.databaseStructure = getOrDefault(databaseStructure, () -> generateDDL(dataSource));
@@ -271,7 +272,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     return currentDb;
   }
 
-  private static String generateDDL(DataSource dataSource) {
+  private String generateDDL(DataSource dataSource) {
     StringBuilder ddl = new StringBuilder();
 
     try (Connection connection = dataSource.getConnection()) {
@@ -282,8 +283,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
       currentDb = getCurrentDatabase(connection);
 
       log.debug(">>>>>>>>>>>>> >>>>>>>> Connected to database: {}", currentDb);
-      // Consider configuring to allow users query only views or tables
-      ResultSet tables = metaData.getTables(currentDb, null, "%", new String[] {"TABLE", "VIEW"});
+      ResultSet tables = metaData.getTables(currentDb, null, "%", this.schemaType);
 
       while (tables.next()) {
         String tableName = tables.getString("TABLE_NAME");

@@ -36,12 +36,14 @@ public class AssistantService {
   private PromptTemplate sqlPromptTemplate;
   private boolean useCloudLLMOnly;
   private final ModelConfig modelConfig;
+  private String[] schemaType;
 
   @Autowired
   public AssistantService(
       Assistant assistant,
       PromptTemplate sqlPromptTemplate,
       ModelConfig modelConfig,
+      String[] schemaType,
       DataSource dataSource,
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
@@ -56,6 +58,7 @@ public class AssistantService {
     this.modelConfig = modelConfig;
     this.response = "Unexpected Error occured";
     this.sqlRun = "Unexpected Error occured";
+    this.schemaType = schemaType;
   }
 
   public void updateSqlRun(String sqlRun) {
@@ -97,6 +100,7 @@ public class AssistantService {
 
             .embeddingModel(embeddingModel)
             .embeddingStore(embeddingStore)
+            .schemaType(schemaType)
             .assistantService(this)
             .build();
     log.debug("Processing query through AssistantService: {}", query);
