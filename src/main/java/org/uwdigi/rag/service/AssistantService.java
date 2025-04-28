@@ -12,6 +12,7 @@ import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.uwdigi.rag.config.ModelConfig;
 import org.uwdigi.rag.shared.Assistant;
@@ -37,6 +38,7 @@ public class AssistantService {
   private boolean useCloudLLMOnly;
   private final ModelConfig modelConfig;
   private String[] schemaType;
+  private final ChatLanguageModel answerChatLanguageModel;
 
   @Autowired
   public AssistantService(
@@ -47,8 +49,8 @@ public class AssistantService {
       DataSource dataSource,
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
-      ModelFactory modelFactory
-      ) {
+      @Qualifier("answerChatLanguageModel") ChatLanguageModel answerChatLanguageModel,
+      ModelFactory modelFactory) {
     this.assistant = assistant;
     this.dataSource = dataSource;
     this.modelFactory = modelFactory;
@@ -59,6 +61,7 @@ public class AssistantService {
     this.response = "Unexpected Error occured";
     this.sqlRun = "Unexpected Error occured";
     this.schemaType = schemaType;
+    this.answerChatLanguageModel = answerChatLanguageModel;
   }
 
   public void updateSqlRun(String sqlRun) {
@@ -88,16 +91,15 @@ public class AssistantService {
    */
   public QueryResponse processQuery(String query, String modelName) {
     log.debug("Processing with model: {}", modelName);
-    
-    ChatLanguageModel answerModel = modelConfig.getAnswerGenerationModel();
+
+    ChatLanguageModel chatLanguageModel = this.modelFactory.createModel(modelName);
 
     ContentRetriever contentRetriever =
         SqlDatabaseContentRetriever.builder()
             .dataSource(dataSource)
-            .sqlDialect("MySQL")
-            .chatLanguageModel(modelConfig.getSqlGenerationModel())
+            .chatLanguageModel(chatLanguageModel)
+            .answerChatLanguageModel(answerChatLanguageModel)
             .promptTemplate(sqlPromptTemplate)
-
             .embeddingModel(embeddingModel)
             .embeddingStore(embeddingStore)
             .schemaType(schemaType)
@@ -106,7 +108,7 @@ public class AssistantService {
     log.debug("Processing query through AssistantService: {}", query);
     String answer =
         AiServices.builder(Assistant.class)
-            .chatLanguageModel(answerModel)
+            .chatLanguageModel(chatLanguageModel)
             .contentRetriever(contentRetriever)
             .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
             .build()

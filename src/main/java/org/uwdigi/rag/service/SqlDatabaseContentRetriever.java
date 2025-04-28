@@ -40,6 +40,7 @@ import javax.sql.DataSource;
 import lombok.Builder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.uwdigi.rag.config.FhirDbConfig;
 
 /**
@@ -92,6 +93,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
 
   private PromptTemplate promptTemplate;
   private ChatLanguageModel chatLanguageModel;
+  private final ChatLanguageModel answerChatLanguageModel;
   private final AssistantService assistantService;
   private final Map<String, String> tables;
   private final int maxRetries;
@@ -140,6 +142,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
       Map<String, String> tables,
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
+      @Qualifier("answerChatLanguageModel") ChatLanguageModel answerChatLanguageModel,
       String[] schemaType,
       Integer maxRetries) {
     this.schemaType = schemaType;
@@ -147,6 +150,8 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
     this.sqlDialect = getOrDefault(sqlDialect, () -> getSqlDialect(dataSource));
     this.databaseStructure = getOrDefault(databaseStructure, () -> generateDDL(dataSource));
     this.chatLanguageModel = ensureNotNull(chatLanguageModel, "chatLanguageModel");
+    this.answerChatLanguageModel =
+        ensureNotNull(answerChatLanguageModel, "answerChatLanguageModel");
     this.maxRetries = getOrDefault(maxRetries, 1);
     if (promptTemplate == null) {
       this.promptTemplate = DEFAULT_PROMPT_TEMPLATE;
@@ -442,7 +447,7 @@ public class SqlDatabaseContentRetriever implements ContentRetriever {
                       + "\n\nAnswer using the following information:\n"
                       + content.textSegment().text()));
 
-          AiMessage aiMessage = chatLanguageModel.chat(messages).aiMessage();
+          AiMessage aiMessage = answerChatLanguageModel.chat(messages).aiMessage();
 
           log.debug("Local AI response: {}", aiMessage.text());
 

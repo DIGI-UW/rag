@@ -40,9 +40,6 @@ public class ModelConfig {
   @Value("${app.local-ai.model-name}")
   private String localAiModelName;
 
-  @Value("${app.sql.generation.model}")
-  private String sqlGenerationModel;
-
   @Value("${app.answer.generation.model}")
   private String answerGenerationModel;
 
@@ -124,16 +121,6 @@ public class ModelConfig {
 
   public void setLocalAiModelName(String localAiModelName) {
     this.localAiModelName = localAiModelName;
-  }
-
-  public ChatLanguageModel getSqlGenerationModel() {
-    return switch (sqlGenerationModel.toLowerCase()) {
-      case "ollama" -> ollamaModel;
-      case "openai" -> openaiModel;
-      case "gemini" -> geminiModel;
-      default ->
-          throw new IllegalArgumentException("Invalid SQL generation model: " + sqlGenerationModel);
-    };
   }
 
   public ChatLanguageModel getAnswerGenerationModel() {

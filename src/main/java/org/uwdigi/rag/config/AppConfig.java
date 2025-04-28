@@ -32,6 +32,7 @@ import javax.sql.DataSource;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -103,6 +104,9 @@ public class AppConfig {
   @Value("${spring.datasource.type}")
   private String datasourceType;
 
+  @Value("${app.answer.generation.model}")
+  private String answerGenerationModel;
+
   private final FhirDbConfig fhirDbConfig;
 
   public AppConfig(FhirDbConfig fhirDbConfig) {
@@ -152,7 +156,7 @@ public class AppConfig {
   }
 
   @Bean(name = "geminiChatLanguageModel")
-  @Primary 
+  @Primary
   public ChatLanguageModel geminiChatModel() {
     log.info("Initializing Gemini Chat Model...");
     try {
@@ -230,6 +234,24 @@ public class AppConfig {
     }
   }
 
+  @Bean(name = "answerChatLanguageModel")
+  public ChatLanguageModel answerChatLanguageModel(
+      @Qualifier("ollamaChatLanguageModel") ChatLanguageModel ollamaChatLanguageModel,
+      @Qualifier("openaiChatLanguageModel") ChatLanguageModel openaiChatLanguageModel,
+      @Qualifier("localAiChatLanguageModel") ChatLanguageModel localAiChatLanguageModel,
+      @Qualifier("geminiChatLanguageModel") ChatLanguageModel geminiChatLanguageModel) {
+
+    return switch (answerGenerationModel) {
+      case "ollama" -> ollamaChatLanguageModel;
+      case "openai" -> openaiChatLanguageModel;
+      case "localai" -> localAiChatLanguageModel;
+      case "gemini" -> geminiChatLanguageModel;
+      default ->
+          throw new IllegalArgumentException(
+              "Invalid answer generation model: " + answerGenerationModel);
+    };
+  }
+
   @Bean
   public EmbeddingModel embeddingModel() {
     log.info("Initializing Embedding Model...");
@@ -260,8 +282,8 @@ public class AppConfig {
       EmbeddingStore<TextSegment> embeddingStore,
       EmbeddingModel embeddingModel,
       ChatLanguageModel geminiChatModel,
-      ModelConfig modelConfig
-      ) {
+      @Qualifier("answerChatLanguageModel") ChatLanguageModel answerChatLanguageModel,
+      ModelConfig modelConfig) {
 
     Map<String, String> tables = fhirDbConfig != null ? fhirDbConfig.getTables() : new HashMap<>();
 
@@ -297,7 +319,8 @@ public class AppConfig {
     }
     return SqlDatabaseContentRetriever.builder()
         .dataSource(dataSource)
-        .chatLanguageModel(modelConfig.getSqlGenerationModel())
+        .chatLanguageModel(geminiChatModel)
+        .answerChatLanguageModel(answerChatLanguageModel)
         .promptTemplate(sqlPromptTemplate)
         .tables(tables)
         .schemaType(schemaType)
@@ -310,7 +333,7 @@ public class AppConfig {
       ChatLanguageModel geminiChatModel,
       ContentRetriever sqlDatabaseContentRetriever) {
     return AiServices.builder(Assistant.class)
-        .chatLanguageModel(modelConfig.getAnswerGenerationModel())
+        .chatLanguageModel(geminiChatModel)
         .contentRetriever(sqlDatabaseContentRetriever)
         .chatMemory(MessageWindowChatMemory.withMaxMessages(maxWindowChatMemory))
         .build();
